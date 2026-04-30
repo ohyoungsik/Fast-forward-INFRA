@@ -98,3 +98,13 @@ resource "aws_security_group_rule" "fastapi_to_postgres" {
   security_group_id        = aws_security_group.private_server_sg["postgre-db-server"].id
   source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
 }
+
+resource "aws_security_group_rule" "fastapi_to_prometheus" {
+  type                     = "ingress"
+  description              = "Prometheus from FastAPI server"
+  from_port                = 9090
+  to_port                  = 9090
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.bastion_sg.id
+  source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
+}

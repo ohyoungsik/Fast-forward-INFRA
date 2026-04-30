@@ -146,6 +146,7 @@ resource "aws_instance" "bastion" {
   }
 }
 
+# 변수에 생성된 서버만큼 생성
 resource "aws_instance" "private_servers" {
   for_each = var.private_servers
 
