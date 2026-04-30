@@ -110,13 +110,31 @@ resource "aws_route_table_association" "private_assoc" {
   route_table_id = aws_route_table.private_rt.id
 }
 
+# pem 파일 관련 작업
+# 알고리즘 결정
+resource "tls_private_key" "pk" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+# 키등록
+resource "aws_key_pair" "kp" {
+  key_name   = var.key_name
+  public_key = tls_private_key.pk.public_key_openssh
+}
+# 개인키 가져오기
+resource "local_file" "project_key_pem" {
+  filename        = "${path.module}/${var.key_name}.pem"
+  content         = tls_private_key.pk.private_key_pem
+  file_permission = "0600"
+}
+
 resource "aws_instance" "bastion" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
-  key_name                    = var.key_name
+  key_name                    = aws_key_pair.kp.key_name
   associate_public_ip_address = true
-  private_ip                  = "172.16.10.10"
+  private_ip                  = "172.16.10.50" # 172.16.10.10 은 사용중.... 
 
   vpc_security_group_ids = [
     aws_security_group.bastion_sg.id
@@ -134,7 +152,7 @@ resource "aws_instance" "private_servers" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.private.id
-  key_name                    = var.key_name
+  key_name                    = aws_key_pair.kp.key_name
   private_ip                  = each.value.private_ip
   associate_public_ip_address = false
 
