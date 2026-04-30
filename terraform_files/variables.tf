@@ -27,7 +27,7 @@ variable "key_name" {
 }
 
 variable "instance_type" {
-  default = "t3.micro"
+  default = "t3.small"
 }
 
 variable "private_servers" {
