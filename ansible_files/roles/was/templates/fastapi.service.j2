@@ -1,0 +1,21 @@
+[Unit]
+Description=FastAPI Service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory={{ fastapi_app_dir }}
+
+Environment="PATH={{ fastapi_app_dir }}/venv/bin"
+
+ExecStart={{ fastapi_app_dir }}/venv/bin/gunicorn \
+    -w 2 \
+    -k uvicorn.workers.UvicornWorker \
+    -b 0.0.0.0:{{ fastapi_port }} \
+    main:app
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

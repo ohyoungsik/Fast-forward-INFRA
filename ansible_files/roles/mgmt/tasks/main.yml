@@ -1,0 +1,15 @@
+---
+# Prometheus 설치 (collection)
+- name: install prometheus
+  include_role:
+    name: prometheus.prometheus.prometheus
+  vars:
+    prometheus_version: "2.47.0"
+
+- name: install grafana
+  include_role:
+    name: cloudalchemy.grafana
+
+- name: install alertmanager
+  include_role:
+    name: cloudalchemy.alertmanager

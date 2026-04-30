@@ -1,0 +1,19 @@
+---
+- name: install filebeat
+  apt:
+    name: filebeat
+    state: present
+
+- name: install fluent-bit
+  apt:
+    name: fluent-bit
+    state: present
+
+- name: start services
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - filebeat
+    - fluent-bit

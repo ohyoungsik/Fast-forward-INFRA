@@ -1,0 +1,90 @@
+---
+- hosts: all
+  become: yes
+  roles:
+    - common
+    # 설치 패키지:
+    # - curl
+    # - vim
+    # - unzip
+    # + (선택) 사용자 생성 / sudo 권한 설정
+
+- hosts: web
+  become: yes
+  roles:
+    - web
+    # 설치 패키지:
+    # - nginx (geerlingguy.nginx role 사용)
+    #
+    # 추가 설정:
+    # - reverse proxy (nginx → fastapi)
+    # - /etc/nginx/sites-available/default 설정 배포
+
+
+- hosts: was
+  become: yes
+  roles:
+    - was
+    # 설치 패키지:
+    # - python3
+    # - python3-pip
+    # - python3-venv
+    #
+    # pip 설치:
+    # - fastapi
+    # - uvicorn
+    #
+    # 추가 설정:
+    # - /opt/fastapi 가상환경 생성
+    # - systemd 서비스 등록 (fastapi.service)
+
+- hosts: db
+  become: yes
+  roles:
+    - db
+    # 설치 패키지:
+    # - postgresql (geerlingguy.postgresql)
+    # - postgresql-contrib
+    # - python3-psycopg2
+    #
+    # 추가 설정:
+    # - DB 생성
+    # - USER 생성
+    # - 권한 부여
+
+- hosts: mgmt
+  become: yes
+  roles:
+    - mgmt
+    # 설치 패키지:
+    # - prometheus (cloudalchemy.prometheus)
+    # - grafana (cloudalchemy.grafana)
+    # - alertmanager (cloudalchemy.alertmanager)
+    #
+    # 추가:
+    # - scrape target 설정
+    # - 대시보드 기반 준비
+
+- hosts: all
+  become: yes
+  roles:
+    - monitoring
+    # 설치 패키지:
+    # - node_exporter
+    #
+    # 추가:
+    # - systemd 서비스 등록
+    # - port 9100 메트릭 제공
+
+- hosts: logging
+  become: yes
+  roles:
+    - logging
+    # 설치 패키지:
+    # - filebeat
+    # - fluent-bit
+    #
+    # 수집 대상:
+    # - nginx access/error log
+    # - fastapi app log
+    # - system log (/var/log/syslog 등)

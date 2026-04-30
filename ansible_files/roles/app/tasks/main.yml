@@ -1,0 +1,40 @@
+- name: Python 설치
+  apt:
+    name: python3-pip
+
+- name: 앱 디렉토리 생성
+  file:
+    path: /home/ansible_3tier/app
+    state: directory
+
+- name: venv 생성
+  command: python3 -m venv /home/ansible_3tier/venv
+
+- name: pip 업그레이드
+  command: /home/ansible_3tier/venv/bin/pip install --upgrade pip
+
+- name: FastAPI 설치
+  command: /home/ansible_3tier/venv/bin/pip install fastapi uvicorn
+
+- name: 앱 코드 배포
+  copy:
+    dest: /home/ansible_3tier/app/main.py
+    content: |
+      from fastapi import FastAPI
+      app = FastAPI()
+
+      @app.get("/")
+      def read_root():
+          return {"msg": "hello"}
+
+- name: systemd 서비스 등록
+  template:
+    src: app.service.j2
+    dest: /etc/systemd/system/app.service
+
+- name: 서비스 실행
+  systemd:
+    name: app
+    daemon_reload: yes
+    state: started
+    enabled: yes
