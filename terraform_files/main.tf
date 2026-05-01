@@ -135,6 +135,10 @@ resource "aws_instance" "bastion" {
   key_name                    = aws_key_pair.kp.key_name
   associate_public_ip_address = true
   private_ip                  = "172.16.10.50" # 172.16.10.10 은 사용중.... 
+  root_block_device {
+    volume_size = 20  
+    volume_type = "gp3"
+  }
 
   vpc_security_group_ids = [
     aws_security_group.bastion_sg.id
@@ -156,6 +160,11 @@ resource "aws_instance" "private_servers" {
   key_name                    = aws_key_pair.kp.key_name
   private_ip                  = each.value.private_ip
   associate_public_ip_address = false
+
+  root_block_device {
+    volume_size = 15  
+    volume_type = "gp3"
+  }
 
   vpc_security_group_ids = [
     aws_security_group.private_server_sg[each.key].id
