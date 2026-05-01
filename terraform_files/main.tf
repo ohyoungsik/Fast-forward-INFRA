@@ -128,7 +128,10 @@ resource "local_file" "project_key_pem" {
   file_permission = "0600"
 }
 
-resource "aws_instance" "bastion" {
+# -------------------------
+# EC2
+# -------------------------
+resource "aws_instance" "bastion_server" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
@@ -175,3 +178,81 @@ resource "aws_instance" "private_servers" {
     Role = "private-server"
   }
 }
+
+
+# =========================
+# Ansible Inventory 생성
+# =========================
+
+resource "local_file" "ansible_inventory" {
+  filename = "${path.module}/inventory.yml"
+
+  content = yamlencode({
+    all = {
+      children = {
+        bastion = {
+          hosts = {
+            "bastion-server" = {
+              ansible_host                 = aws_instance.bastion_server.public_ip
+              ansible_user                 = "ubuntu"
+              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+            }
+          }
+        }
+
+        private = {
+          hosts = {
+            for name, instance in aws_instance.private_servers :
+            name => {
+              ansible_host                 = instance.private_ip
+              ansible_user                 = "ubuntu"
+              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+
+              ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+resource "terraform_data" "wait_for_instance" {
+  depends_on = [
+    aws_instance.bastion_server,
+    aws_instance.private_servers,
+    local_file.ansible_inventory
+  ]
+
+  triggers_replace = concat(
+    [aws_instance.bastion_server.id],
+    [for instance in aws_instance.private_servers : instance.id]
+  )
+
+  # windows 
+  provisioner "local-exec" {
+    command     = "Start-Sleep -Seconds 60"
+    interpreter = ["PowerShell", "-Command"]
+  }
+
+  # linux
+  #    provisioner "local-exec" {
+  #    command = "sleep 60"
+  #  }
+}
+
+
+# 우선 주석 처리 
+# resource "terraform_data" "ansible_run" {
+#   depends_on = [terraform_data.wait_for_instance]
+
+#   triggers_replace = concat(
+#     [aws_instance.bastion_server.id],
+#     [for instance in aws_instance.private_servers : instance.id]
+#   )
+
+#   provisioner "local-exec" {
+#     command     = "ansible-playbook -i ../terraform_files/inventory.yml site.yml"
+#     working_dir = "${path.module}/../ansible_files"
+#   }
+# }
