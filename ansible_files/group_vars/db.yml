@@ -1,0 +1,3 @@
+postgres_db: app_db
+postgres_user: app_user
+postgres_password: app_pass

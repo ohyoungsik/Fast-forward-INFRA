@@ -1,0 +1,9 @@
+roles:
+  - name: geerlingguy.nginx
+  - name: geerlingguy.postgresql
+  - name: cloudalchemy.grafana
+  - name: cloudalchemy.alertmanager
+
+collections:
+  - name: prometheus.prometheus
+  - name: grafana.grafana

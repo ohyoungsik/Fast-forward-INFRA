@@ -1,0 +1,7 @@
+prometheus_targets:
+  node:
+    - targets:
+        - "127.0.0.1:9100"        # mgmt 자기 자신
+        - "54.180.81.61:9100"     # 3-tier 서버
+      labels:
+        env: "lab"

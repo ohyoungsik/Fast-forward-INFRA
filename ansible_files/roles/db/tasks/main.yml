@@ -1,0 +1,39 @@
+---
+- name: install postgresql
+  include_role:
+    name: geerlingguy.postgresql
+    # - PostgreSQL을 직접 apt로 설치하지 않고 Galaxy Role 사용
+
+- name: create db
+  become_user: postgres
+  postgresql_db:
+    name: "{{ postgres_db }}"
+    # - DB 생성은 postgres 슈퍼유저로 수행해야 함
+    # - 애플리케이션에서 사용할 DB 생성
+
+- name: create user
+  become_user: postgres
+  postgresql_user:
+    name: "{{ postgres_user }}"
+    password: "{{ postgres_password }}"
+    # - 애플리케이션(DB 접속용) 계정 생성
+
+- name: grant db privilege
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_user }}"
+    type: database
+    privs: ALL
+    # - DB 전체 접근 권한 부여 (connect, create 등)
+
+- name: grant schema privilege
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_user }}"
+    type: schema
+    objs: public
+    privs: ALL
+    # - 실제 테이블 생성/조회는 schema 권한 필요
+    # - public schema에 권한 부여 (기본 스키마)

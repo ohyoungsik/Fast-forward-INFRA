@@ -1,0 +1,6 @@
+# /home/ansible/ansible_test/group_vars/all.yml
+
+common_packages:
+  - curl
+  - vim
+  - unzip

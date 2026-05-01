@@ -1,0 +1,6 @@
+---
+- name: restart fastapi
+  systemd:
+    name: fastapi
+    state: restarted
+    daemon_reload: yes

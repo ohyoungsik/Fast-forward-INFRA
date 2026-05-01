@@ -1,0 +1,2 @@
+fastapi_app_dir: /var/www/fastapi_app
+fastapi_port: 8000
