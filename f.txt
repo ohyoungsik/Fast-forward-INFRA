@@ -1,0 +1,7 @@
+실습환경 
+HDD 20GB
+메모리 2GB
+
+인스턴스
+HDD -> EBS 8GB
+메모리 -> t3.micro 1GB
