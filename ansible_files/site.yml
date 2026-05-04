@@ -1,69 +1,84 @@
----
-- hosts: all
-  become: yes
-  roles:
-    - common
-    # 설치 패키지:
-    # - curl
-    # - vim
-    # - unzip
-    # + (선택) 사용자 생성 / sudo 권한 설정
+# ---
+# # roles와 collections를 미리 설치한다.
+# - hosts: mgmt
+#   connection: local
+#   gather_facts: no
+#   become: yes
 
-- hosts: web
-  become: yes
-  roles:
-    - web
-    # 설치 패키지:
-    # - nginx (geerlingguy.nginx role 사용)
-    #
-    # 추가 설정:
-    # - reverse proxy (nginx → fastapi)
-    # - /etc/nginx/sites-available/default 설정 배포
+#   tasks:
+
+#     # 해당 명령어가 동작하지 않아 Terminal 수동 설치로 대체
+#     # - name: install galaxy collections_prometheus
+#     #   command: ansible-galaxy collection install prometheus.prometheus
+
+#     - name: install galaxy collections_grafana
+#       command: ansible-galaxy collection install grafana.grafana
+
+# - hosts: all
+#   become: yes
+#   roles:
+#     - common
+#     # 설치 패키지:
+#     # - curl
+#     # - vim
+#     # - unzip
+#     # + (선택) 사용자 생성 / sudo 권한 설정
+
+# - hosts: web
+#   become: yes
+#   roles:
+#     - web
+#     # 설치 패키지:
+#     # - nginx (geerlingguy.nginx role 사용)
+#     #
+#     # 추가 설정:
+#     # - reverse proxy (nginx → fastapi)
+#     # - /etc/nginx/sites-available/default 설정 배포
 
 
-- hosts: was
-  become: yes
-  roles:
-    - was
-    # 설치 패키지:
-    # - python3
-    # - python3-pip
-    # - python3-venv
-    #
-    # pip 설치:
-    # - fastapi
-    # - uvicorn
-    #
-    # 추가 설정:
-    # - /opt/fastapi 가상환경 생성
-    # - systemd 서비스 등록 (fastapi.service)
+# - hosts: was
+#   become: yes
+#   roles:
+#     - was
+#     # 설치 패키지:
+#     # - python3
+#     # - python3-pip
+#     # - python3-venv
+#     #
+#     # pip 설치:
+#     # - fastapi
+#     # - uvicorn
+#     #
+#     # 추가 설정:
+#     # - /opt/fastapi 가상환경 생성
+#     # - systemd 서비스 등록 (fastapi.service)
 
-- hosts: db
-  become: yes
-  roles:
-    - db
-    # 설치 패키지:
-    # - postgresql (geerlingguy.postgresql)
-    # - postgresql-contrib
-    # - python3-psycopg2
-    #
-    # 추가 설정:
-    # - DB 생성
-    # - USER 생성
-    # - 권한 부여
+# - hosts: db
+#   become: yes
+#   roles:
+#     - db
+#     # 설치 패키지:
+#     # - postgresql (geerlingguy.postgresql)
+#     # - postgresql-contrib
+#     # - python3-psycopg2
+#     #
+#     # 추가 설정:
+#     # - DB 생성
+#     # - USER 생성
+#     # - 권한 부여
 
-- hosts: mgmt
-  become: yes
-  roles:
-    - mgmt
-    # 설치 패키지:
-    # - prometheus (cloudalchemy.prometheus)
-    # - grafana (cloudalchemy.grafana)
-    # - alertmanager (cloudalchemy.alertmanager)
-    #
-    # 추가:
-    # - scrape target 설정
-    # - 대시보드 기반 준비
+# - hosts: mgmt
+#   become: yes
+#   roles:
+#     - mgmt
+#     # 설치 패키지:
+#     # - prometheus (prometheus.prometheus)
+#     # - grafana (grafana.grafana)
+#     # - alertmanager (prometheus.alertmanager)
+#     #
+#     # 추가:
+#     # - scrape target 설정
+#     # - 대시보드 기반 준비
 
 - hosts: all
   become: yes
