@@ -1,8 +1,10 @@
 filebeat.inputs:
-- type: log
-  paths:
-    - /var/log/nginx/*.log
-    - /var/log/syslog
+  - type: log
+    enabled: true
+    paths:
+{% for path in log_paths %}
+      - {{ path }}
+{% endfor %}
 
-output.console:
-  pretty: true
+output.elasticsearch:
+  hosts: ["{{ elasticsearch_host }}:9200"]

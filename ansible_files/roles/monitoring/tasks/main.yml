@@ -1,7 +1,7 @@
 ---
 - name: install node exporter
   get_url:
-    url: https://github.com/prometheus/node_exporter/releases/latest/download/node_exporter-1.7.0.linux-amd64.tar.gz
+    url: "https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz"
     dest: /tmp/node_exporter.tar.gz
 
 - name: extract
@@ -12,7 +12,7 @@
 
 - name: copy binary
   copy:
-    src: /opt/node_exporter-*/node_exporter
+    src: /opt/node_exporter-1.7.0.linux-amd64/node_exporter
     dest: /usr/local/bin/node_exporter
     remote_src: yes
     mode: 0755

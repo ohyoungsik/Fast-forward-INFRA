@@ -1,19 +1,107 @@
 ---
-- name: install filebeat
+- name: 필수 패키지 설치
+  apt:
+    name:
+      - apt-transport-https
+    state: present
+    update_cache: yes
+
+- name: keyrings 디렉토리 생성
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Elastic GPG key 다운로드 (ASCII)
+  get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /tmp/elastic.asc
+
+- name: GPG key dearmor
+  command: >
+    gpg --dearmor --batch --yes -o /etc/apt/keyrings/elastic.gpg /tmp/elastic.asc
+
+- name: Elastic repository 추가 (keyring 방식)
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
+    state: present
+    filename: elastic
+
+- name: apt cache 업데이트
+  apt:
+    update_cache: yes
+
+- name: Filebeat 설치
   apt:
     name: filebeat
     state: present
 
-- name: install fluent-bit
+- name: filebeat 설정 배포
+  template:
+    src: filebeat.yml.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart filebeat
+
+- name: Filebeat 서비스 실행 및 활성화
+  systemd:
+    name: filebeat
+    state: started
+    enabled: yes
+
+- name: Fluent Bit 설치를 위한 필수 패키지 설치
+  apt:
+    name:
+      - gnupg
+      - ca-certificates
+    state: present
+    update_cache: yes
+
+- name: keyrings 디렉토리 생성
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: 기존 Fluent Bit key 삭제
+  file:
+    path: /etc/apt/keyrings/fluentbit.gpg
+    state: absent
+
+- name: Fluent Bit GPG key 다운로드
+  get_url:
+    url: "{{ fluentbit_key_url }}"
+    dest: /tmp/fluentbit.key
+
+- name: Fluent Bit key dearmor
+  command: >
+    gpg --dearmor --batch --yes -o /etc/apt/keyrings/fluentbit.gpg /tmp/fluentbit.key
+
+- name: Fluent Bit repository 추가
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/fluentbit.gpg] {{ fluentbit_repo_url }} {{ fluentbit_repo_dist }} main"
+    state: present
+    filename: fluentbit
+
+- name: apt cache 업데이트
+  apt:
+    update_cache: yes
+
+- name: Fluent Bit 설치
   apt:
     name: fluent-bit
     state: present
 
-- name: start services
-  service:
-    name: "{{ item }}"
+- name: Fluent Bit 설정 배포
+  template:
+    src: fluent-bit.conf.j2
+    dest: "{{ fluentbit_config_path }}"
+  notify: restart fluent-bit
+
+- name: Fluent Bit 서비스 실행 및 활성화
+  systemd:
+    name: fluent-bit
     state: started
     enabled: yes
-  loop:
-    - filebeat
-    - fluent-bit
