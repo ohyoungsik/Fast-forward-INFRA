@@ -5,3 +5,31 @@ common_packages:
   - vim
   - unzip
   - git
+
+# Filebeat 설정
+filebeat_version: "8.x"
+
+# 가져올 로그들 더 찾아봐서 추가할 것
+log_paths:
+  - /var/log/syslog
+  - /var/log/auth.log
+  - /var/log/nginx/access.log
+  - /var/log/nginx/error.log
+
+elasticsearch_host: "10.0.0.10"
+
+# fluent-bit 설정
+fluentbit_key_url: "https://packages.fluentbit.io/fluentbit.key"
+fluentbit_repo_url: "https://packages.fluentbit.io/ubuntu/jammy"
+fluentbit_repo_dist: "jammy"
+
+fluentbit_config_path: "/etc/fluent-bit/fluent-bit.conf"
+
+fluentbit_inputs:
+  - /var/log/syslog
+  - /var/log/auth.log
+  - /var/log/nginx/access.log
+  - /var/log/nginx/error.log
+
+fluentbit_output_host: "10.0.0.10"
+fluentbit_output_port: 9200
