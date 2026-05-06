@@ -1,0 +1,63 @@
+################################
+# 🔑 SSH / Key files (절대 업로드 금지)
+################################
+*.pem
+*.key
+*.pub
+
+################################
+# 🧠 Ansible
+################################
+# Galaxy roles (로컬 설치 → Git 제외)
+ansible_files/roles/geerlingguy.*
+
+# Ansible retry files
+*.retry
+
+# Inventory (환경별로 다르면 제외)
+ansible_files/inventory.ini
+
+# Ansible config (개인 환경)
+ansible_files/ansible.cfg
+
+# Logs
+*.log
+
+################################
+# ☁️ Terraform
+################################
+# Terraform state (절대 업로드 금지)
+*.tfstate
+*.tfstate.*
+
+# Terraform cache
+.terraform/
+.terraform.lock.hcl
+
+# 변수 파일 (비밀정보)
+*.tfvars
+*.tfvars.json
+
+################################
+# 🐧 OS / Editor
+################################
+# Linux
+*~
+*.swp
+
+# VSCode
+.vscode/
+
+# Mac
+.DS_Store
+
+################################
+# 🧪 기타
+################################
+# 임시 파일
+tmp/
+temp/
+
+# Python cache (혹시 쓸 경우)
+__pycache__/
+*.pyc
