@@ -6,35 +6,7 @@
     state: present
     update_cache: yes
 
-- name: keyrings 디렉토리 생성
-  file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-
-- name: Elastic GPG key 다운로드 (ASCII)
-  get_url:
-    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
-    dest: /tmp/elastic.asc
-
-- name: GPG key dearmor
-  command: >
-    gpg --dearmor --batch --yes -o /etc/apt/keyrings/elastic.gpg /tmp/elastic.asc
-
-- name: Elastic repository 추가 (keyring 방식)
-  apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
-    state: present
-    filename: elastic
-
-- name: apt cache 업데이트
-  apt:
-    update_cache: yes
-
-- name: Filebeat 설치
-  apt:
-    name: filebeat
-    state: present
+# 현경님 playbook 보며 수정 필요
 
 - name: filebeat 설정 배포
   template:
@@ -105,3 +77,34 @@
     name: fluent-bit
     state: started
     enabled: yes
+
+
+# - name: keyrings 디렉토리 생성
+#   file:
+#     path: /etc/apt/keyrings
+#     state: directory
+#     mode: '0755'
+
+# - name: Elastic GPG key 다운로드 (ASCII)
+#   get_url:
+#     url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+#     dest: /tmp/elastic.asc
+
+# - name: GPG key dearmor
+#   command: >
+#     gpg --dearmor --batch --yes -o /etc/apt/keyrings/elastic.gpg /tmp/elastic.asc
+
+# - name: Elastic repository 추가 (keyring 방식)
+#   apt_repository:
+#     repo: "deb [signed-by=/etc/apt/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
+#     state: present
+#     filename: elastic
+
+# - name: apt cache 업데이트
+#   apt:
+#     update_cache: yes
+
+# - name: Filebeat 설치
+#   apt:
+#     name: filebeat
+#     state: present

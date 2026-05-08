@@ -185,11 +185,12 @@ resource "aws_instance" "private_servers" {
 # =========================
 
 resource "local_file" "ansible_inventory" {
-  filename = "${path.module}/inventory.yml"
+  filename = "${path.module}/../ansible_files/inventory.yml"
 
   content = yamlencode({
     all = {
       children = {
+
         bastion = {
           hosts = {
             "bastion-server" = {
@@ -200,11 +201,34 @@ resource "local_file" "ansible_inventory" {
           }
         }
 
-        private = {
+        web = {
           hosts = {
-            for name, instance in aws_instance.private_servers :
-            name => {
-              ansible_host                 = instance.private_ip
+            "nginx-fe-server" = {
+              ansible_host                 = aws_instance.private_servers["nginx-fe-server"].private_ip
+              ansible_user                 = "ubuntu"
+              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+
+              ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
+            }
+          }
+        }
+
+        was = {
+          hosts = {
+            "fastapi-be-server" = {
+              ansible_host                 = aws_instance.private_servers["fastapi-be-server"].private_ip
+              ansible_user                 = "ubuntu"
+              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+
+              ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
+            }
+          }
+        }
+
+        db = {
+          hosts = {
+            "postgre-db-server" = {
+              ansible_host                 = aws_instance.private_servers["postgre-db-server"].private_ip
               ansible_user                 = "ubuntu"
               ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
 
@@ -217,6 +241,72 @@ resource "local_file" "ansible_inventory" {
   })
 }
 
+# resource "local_file" "ansible_inventory" {
+#   filename = "${path.module}/inventory.yml"
+
+#   content = yamlencode({
+#     all = {
+#       children = {
+#         bastion = {
+#           hosts = {
+#             "bastion-server" = {
+#               ansible_host                 = aws_instance.bastion_server.public_ip
+#               ansible_user                 = "ubuntu"
+#               ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+#             }
+#           }
+#         }
+
+#         private = {
+#           hosts = {
+#             for name, instance in aws_instance.private_servers :
+#             name => {
+#               ansible_host                 = instance.private_ip
+#               ansible_user                 = "ubuntu"
+#               ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+
+#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
+#             }
+#           }
+#         }
+#       }
+#     }
+#   })
+# }
+
+# Terraform에서 ansible_files/group_vars/all.yml 생성
+
+resource "local_file" "prometheus_vars" {
+
+  filename = "${path.module}/../ansible_files/group_vars/bastion.yml"
+
+  content = yamlencode({
+
+    prometheus_targets = {
+      node = [
+        {
+          targets = [
+
+            "${aws_instance.bastion_server.public_ip}:9100",
+
+            "${aws_instance.private_servers["nginx-fe-server"].private_ip}:9100",
+
+            "${aws_instance.private_servers["fastapi-be-server"].private_ip}:9100",
+
+            "${aws_instance.private_servers["postgre-db-server"].private_ip}:9100"
+          ]
+
+          labels = {
+            env = "lab"
+          }
+        }
+      ]
+    }
+  })
+}
+
+# cloud init 등 서버의 다양한 환경 초기화를 위해
+# ansible 실행 전 60초 간 대기
 resource "terraform_data" "wait_for_instance" {
   depends_on = [
     aws_instance.bastion_server,
@@ -224,35 +314,59 @@ resource "terraform_data" "wait_for_instance" {
     local_file.ansible_inventory
   ]
 
+  # triggers_replace -> 해당 인자에 변경사항이 생기면, resource를 다시 실행하라
+  # concat(
+  #   [aws_instance.bastion_server.id],
+  #   [for instance in aws_instance.private_servers : instance.id]
+  # ) 의 경우엔 4 인스턴스 중 하나라도 아이디가 변경되면 다시 시행하라
   triggers_replace = concat(
     [aws_instance.bastion_server.id],
     [for instance in aws_instance.private_servers : instance.id]
   )
 
   # windows 
-  provisioner "local-exec" {
-    command     = "Start-Sleep -Seconds 60"
-    interpreter = ["PowerShell", "-Command"]
-  }
+  # provisioner "local-exec" {
+  #   command     = "Start-Sleep -Seconds 60"
+  #   interpreter = ["PowerShell", "-Command"]
+  # }
 
   # linux
-  #    provisioner "local-exec" {
-  #    command = "sleep 60"
-  #  }
+     provisioner "local-exec" {
+     command = "sleep 60"
+   }
 }
 
 
 # 우선 주석 처리 
-# resource "terraform_data" "ansible_run" {
-#   depends_on = [terraform_data.wait_for_instance]
+resource "terraform_data" "ansible_run" {
+  # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
+  depends_on = [
 
-#   triggers_replace = concat(
-#     [aws_instance.bastion_server.id],
-#     [for instance in aws_instance.private_servers : instance.id]
-#   )
+    # inventory 생성 완료
+    local_file.ansible_inventory,
 
-#   provisioner "local-exec" {
-#     command     = "ansible-playbook -i ../terraform_files/inventory.yml site.yml"
-#     working_dir = "${path.module}/../ansible_files"
-#   }
-# }
+    # prometheus 변수 생성 완료
+    local_file.prometheus_vars,
+
+    # EC2 생성 완료 + SSH 대기 완료
+    terraform_data.wait_for_instance,
+
+    # NAT 및 private 인터넷 경로 준비 완료
+    aws_nat_gateway.nat,
+    aws_route.private_nat_route,
+
+    # public route도 명시적으로 보장
+    aws_route.public_internet_route
+  ]
+
+  triggers_replace = concat(
+    [aws_instance.bastion_server.id],
+    [for instance in aws_instance.private_servers : instance.id]
+  )
+
+  provisioner "local-exec" {
+    # command     = "ansible-playbook -i ../terraform_files/inventory.yml site.yml"
+    command     = "ansible-playbook site.yml"
+    working_dir = "${path.module}/../ansible_files"
+  }
+}

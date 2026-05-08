@@ -1,8 +1,8 @@
 ---
-- name: restart filebeat
-  systemd:
-    name: filebeat
-    state: restarted
+# - name: restart filebeat
+#   systemd:
+#     name: filebeat
+#     state: restarted
 
 - name: restart fluent-bit
   systemd:
