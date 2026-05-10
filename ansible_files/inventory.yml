@@ -1,0 +1,36 @@
+# inventory.yml.tpl
+all:
+  children:
+    bastion:
+      hosts:
+        bastion-server:
+          ansible_host: "3.36.109.66"
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: "../terraform_files/FF-test-key.pem"
+    web:
+      hosts:
+        nginx-fe-server:
+          ansible_host: "172.16.20.10"
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: "../terraform_files/FF-test-key.pem"
+          ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i /home/user12/Fast-forward-INFRA/terraform_files/FF-test-key.pem
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@3.36.109.66\"
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    was:
+      hosts:
+        fastapi-be-server:
+          ansible_host: "172.16.20.20"
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: "../terraform_files/FF-test-key.pem"
+          ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i /home/user12/Fast-forward-INFRA/terraform_files/FF-test-key.pem
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@3.36.109.66\"
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    db:
+      hosts:
+        postgre-db-server:
+          ansible_host: "172.16.20.30"
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: "../terraform_files/FF-test-key.pem"
+          ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i /home/user12/Fast-forward-INFRA/terraform_files/FF-test-key.pem
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@3.36.109.66\"
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
