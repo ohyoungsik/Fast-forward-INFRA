@@ -392,7 +392,7 @@ resource "terraform_data" "ansible_run" {
     # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
     command       = <<EOT
   
-      ansible-galaxy install -r requirements.yml
+      ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
       ansible-galaxy collection install prometheus.prometheus
       ansible-galaxy collection install grafana.grafana
       ansible-playbook -f 1 site.yml
