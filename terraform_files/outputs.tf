@@ -22,9 +22,9 @@ output "ssh_private_server_commands" {
 }
 
 output "ssh_bastion_command" {
-  value = "ssh -i ~/.ssh/base-project-key.pem ubuntu@${aws_instance.bastion_server.public_ip}"
+  value = "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}"
 }
 
 output "ssh_nginx_via_bastion_example" {
-  value = "ssh -i ~/.ssh/base-project-key.pem -J ubuntu@${aws_instance.bastion_server.public_ip} ubuntu@172.16.20.10"
+  value = "ssh -i ~/.ssh/${var.key_name}.pem -J ubuntu@${aws_instance.bastion_server.public_ip} ubuntu@172.16.20.10"
 }

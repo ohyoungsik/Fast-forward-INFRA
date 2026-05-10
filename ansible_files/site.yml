@@ -1,21 +1,21 @@
 ---
 # roles와 collections를 미리 설치한다.
-- hosts: bastion
-  connection: local
-  gather_facts: no
-  become: yes
+# 이건 로컬에서 시행되어야 할 것들
+# - hosts: bastion
+#   gather_facts: no
+#   become: yes
 
-  tasks:
+#   tasks:
 
-    - name: install galaxy roles
-      command: ansible-galaxy install -r requirements.yml
+#     - name: install galaxy roles
+#       command: ansible-galaxy install -r requirements.yml
 
-    # 해당 명령어가 동작하지 않아 Terminal 수동 설치로 대체
-    - name: install galaxy collections_prometheus
-      command: ansible-galaxy collection install prometheus.prometheus
+#     # 해당 명령어가 동작하지 않아 Terminal 수동 설치로 대체
+#     - name: install galaxy collections_prometheus
+#       command: ansible-galaxy collection install prometheus.prometheus
 
-    - name: install galaxy collections_grafana
-      command: ansible-galaxy collection install grafana.grafana
+#     - name: install galaxy collections_grafana
+#       command: ansible-galaxy collection install grafana.grafana
 
 - hosts: all
   become: yes
@@ -100,7 +100,3 @@
     # 추가:
     # - systemd 서비스 등록
     # - port 9100 메트릭 제공
-
-- hosts: all
-  become: yes
-  roles:

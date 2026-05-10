@@ -184,62 +184,78 @@ resource "aws_instance" "private_servers" {
 # Ansible Inventory 생성
 # =========================
 
+# main.tf - local_file 리소스 수정
 resource "local_file" "ansible_inventory" {
-  filename = "${path.module}/../ansible_files/inventory.yml"
-
-  content = yamlencode({
-    all = {
-      children = {
-
-        bastion = {
-          hosts = {
-            "bastion-server" = {
-              ansible_host                 = aws_instance.bastion_server.public_ip
-              ansible_user                 = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
-            }
-          }
-        }
-
-        web = {
-          hosts = {
-            "nginx-fe-server" = {
-              ansible_host                 = aws_instance.private_servers["nginx-fe-server"].private_ip
-              ansible_user                 = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
-
-              ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
-            }
-          }
-        }
-
-        was = {
-          hosts = {
-            "fastapi-be-server" = {
-              ansible_host                 = aws_instance.private_servers["fastapi-be-server"].private_ip
-              ansible_user                 = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
-
-              ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
-            }
-          }
-        }
-
-        db = {
-          hosts = {
-            "postgre-db-server" = {
-              ansible_host                 = aws_instance.private_servers["postgre-db-server"].private_ip
-              ansible_user                 = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
-
-              ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
-            }
-          }
-        }
-      }
-    }
+  content = templatefile("${path.module}/inventory.yml.tpl", {
+    bastion_public_ip  = aws_instance.bastion_server.public_ip
+    nginx_private_ip   = aws_instance.private_servers["nginx-fe-server"].private_ip
+    fastapi_private_ip = aws_instance.private_servers["fastapi-be-server"].private_ip
+    postgre_private_ip = aws_instance.private_servers["postgre-db-server"].private_ip
+    key_path           = abspath(path.module)
+    key_name           = var.key_name
   })
+  filename = "../ansible_files/inventory.yml"
 }
+
+# resource "local_file" "ansible_inventory" {
+#   filename = "${path.module}/../ansible_files/inventory.yml"
+
+#   content = yamlencode({
+#     all = {
+#       children = {
+
+#         bastion = {
+#           hosts = {
+#             "bastion-server" = {
+#               ansible_host                 = aws_instance.bastion_server.public_ip
+#               ansible_user                 = "ubuntu"
+#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
+#             }
+#           }
+#         }
+
+#         web = {
+#           hosts = {
+#             "nginx-fe-server" = {
+#               ansible_host                 = aws_instance.private_servers["nginx-fe-server"].private_ip
+#               ansible_user                 = "ubuntu"
+#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
+
+#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
+#             }
+#           }
+#         }
+
+#         was = {
+#           hosts = {
+#             "fastapi-be-server" = {
+#               ansible_host                 = aws_instance.private_servers["fastapi-be-server"].private_ip
+#               ansible_user                 = "ubuntu"
+#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
+
+#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
+#             }
+#           }
+#         }
+
+#         db = {
+#           hosts = {
+#             "postgre-db-server" = {
+#               ansible_host                 = aws_instance.private_servers["postgre-db-server"].private_ip
+#               ansible_user                 = "ubuntu"
+#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
+
+#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
+#             }
+#           }
+#         }
+#       }
+#     }
+#   })
+# }
 
 # resource "local_file" "ansible_inventory" {
 #   filename = "${path.module}/inventory.yml"
@@ -252,7 +268,7 @@ resource "local_file" "ansible_inventory" {
 #             "bastion-server" = {
 #               ansible_host                 = aws_instance.bastion_server.public_ip
 #               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
 #             }
 #           }
 #         }
@@ -263,9 +279,9 @@ resource "local_file" "ansible_inventory" {
 #             name => {
 #               ansible_host                 = instance.private_ip
 #               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "${path.module}/base-project-key.pem"
+#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
 
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/base-project-key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
+#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${abspath(path.module)}/${var.key_name}.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
 #             }
 #           }
 #         }
@@ -365,8 +381,21 @@ resource "terraform_data" "ansible_run" {
   )
 
   provisioner "local-exec" {
-    # command     = "ansible-playbook -i ../terraform_files/inventory.yml site.yml"
-    command     = "ansible-playbook site.yml"
     working_dir = "${path.module}/../ansible_files"
+    # scp -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}:~/.ssh
+    # Bastion 서버에 pem 키 파일 복사
+    # (Bastion -> Private SSH 접속을 위해 필요)
+    # 개행 기호를 넣으면 깨질 수 있으므로 한 줄로 작성
+
+    # ssh -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip} "chmod 400 ~/.ssh/${var.key_name}.pem"
+    # Bastion 서버 내부의 pem 권한 설정
+    # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
+    command       = <<EOT
+  
+      ansible-galaxy install -r requirements.yml
+      ansible-galaxy collection install prometheus.prometheus
+      ansible-galaxy collection install grafana.grafana
+      ansible-playbook -f 1 site.yml
+    EOT
   }
 }

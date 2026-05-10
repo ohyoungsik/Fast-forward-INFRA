@@ -8,21 +8,6 @@
 
 # 현경님 playbook 보며 수정 필요
 
-- name: filebeat 설정 배포
-  template:
-    src: filebeat.yml.j2
-    dest: /etc/filebeat/filebeat.yml
-    owner: root
-    group: root
-    mode: '0644'
-  notify: restart filebeat
-
-- name: Filebeat 서비스 실행 및 활성화
-  systemd:
-    name: filebeat
-    state: started
-    enabled: yes
-
 - name: Fluent Bit 설치를 위한 필수 패키지 설치
   apt:
     name:
@@ -108,3 +93,18 @@
 #   apt:
 #     name: filebeat
 #     state: present
+
+# - name: filebeat 설정 배포
+#   template:
+#     src: filebeat.yml.j2
+#     dest: /etc/filebeat/filebeat.yml
+#     owner: root
+#     group: root
+#     mode: '0644'
+#   notify: restart filebeat
+
+# - name: Filebeat 서비스 실행 및 활성화
+#   systemd:
+#     name: filebeat
+#     state: started
+#     enabled: yes
