@@ -25,7 +25,7 @@ variable "availability_zone" {
 variable "key_name" {
   description = "EC2 key pair name"
   type = string
-  default = "FF-test-key"
+  default = "fastforward_key"
 }
 
 variable "instance_type" {

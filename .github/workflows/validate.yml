@@ -1,0 +1,54 @@
+# PR 올릴 때마다 실행
+# terraform fmt -check + terraform validate
+# 코드 포맷 및 문법 오류 검사
+
+name: Validate
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "terraform_files/**"
+      - "ansible_files/**"
+
+jobs:
+  terraform-validate:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform_files
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validate
+        run: terraform validate
+
+  ansible-lint:
+    name: Ansible lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ansible-lint
+        run: pip install ansible ansible-lint --break-system-packages
+
+      - name: Ansible lint
+        working-directory: ansible_files
+        run: ansible-lint site.yml

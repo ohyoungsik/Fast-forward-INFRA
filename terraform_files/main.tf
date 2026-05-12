@@ -197,98 +197,15 @@ resource "local_file" "ansible_inventory" {
   filename = "../ansible_files/inventory.yml"
 }
 
-# resource "local_file" "ansible_inventory" {
-#   filename = "${path.module}/../ansible_files/inventory.yml"
+# main.tf 또는 별도 ansible.tf에 추가
 
-#   content = yamlencode({
-#     all = {
-#       children = {
-
-#         bastion = {
-#           hosts = {
-#             "bastion-server" = {
-#               ansible_host                 = aws_instance.bastion_server.public_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-#             }
-#           }
-#         }
-
-#         web = {
-#           hosts = {
-#             "nginx-fe-server" = {
-#               ansible_host                 = aws_instance.private_servers["nginx-fe-server"].private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
-#             }
-#           }
-#         }
-
-#         was = {
-#           hosts = {
-#             "fastapi-be-server" = {
-#               ansible_host                 = aws_instance.private_servers["fastapi-be-server"].private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
-#             }
-#           }
-#         }
-
-#         db = {
-#           hosts = {
-#             "postgre-db-server" = {
-#               ansible_host                 = aws_instance.private_servers["postgre-db-server"].private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
-#             }
-#           }
-#         }
-#       }
-#     }
-#   })
-# }
-
-# resource "local_file" "ansible_inventory" {
-#   filename = "${path.module}/inventory.yml"
-
-#   content = yamlencode({
-#     all = {
-#       children = {
-#         bastion = {
-#           hosts = {
-#             "bastion-server" = {
-#               ansible_host                 = aws_instance.bastion_server.public_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-#             }
-#           }
-#         }
-
-#         private = {
-#           hosts = {
-#             for name, instance in aws_instance.private_servers :
-#             name => {
-#               ansible_host                 = instance.private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${abspath(path.module)}/${var.key_name}.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
-#             }
-#           }
-#         }
-#       }
-#     }
-#   })
-# }
+resource "local_file" "ansible_cfg" {
+  filename = "${path.module}/../ansible_files/ansible.cfg"
+  content  = templatefile("${path.module}/ansible_cfg.tpl", {
+    bastion_ip = aws_instance.bastion.public_ip
+    gen_path = path.module
+  })
+}
 
 # Terraform에서 ansible_files/group_vars/all.yml 생성
 

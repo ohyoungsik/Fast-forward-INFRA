@@ -1,0 +1,81 @@
+# PR -> dev 시 실행
+# terraform plan -out=tfplan
+# 결과를 PR 코멘트로 자동 등록 (접기/펼치기 포함)
+# tfplan 바이너리를 artifact로 7일 보관
+# plan 실패 시 PR 머지 블로킹
+
+name: Terraform plan
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "terraform_files/**"
+    types: [opened, synchronize, reopened]
+
+jobs:
+  plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: terraform_files
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+        continue-on-error: true
+
+      - name: Comment plan result on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.plan.outcome }}' === 'success' ? '✅ 성공' : '❌ 실패';
+            const output = `### Terraform Plan ${status}
+
+            <details>
+            <summary>플랜 결과 보기</summary>
+
+            \`\`\`hcl
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            > PR #${{ github.event.pull_request.number }} · 커밋 \`${{ github.sha }}\``;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Save plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.event.pull_request.number }}
+          path: terraform_files/tfplan
+          retention-days: 7

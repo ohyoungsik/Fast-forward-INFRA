@@ -1,0 +1,84 @@
+# destroy.yml — GitHub Actions 웹 UI에서 수동 실행
+
+# "destroy" 문자열 입력 확인 후 실행 (오타 방지)
+# all / ec2_only / security_group_only 선택 가능
+# environment: production 보호 규칙 적용
+
+name: Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '정말 삭제하시겠습니까? "destroy"를 입력하세요'
+        required: true
+        type: string
+      target:
+        description: '삭제 대상 (전체 삭제 또는 특정 리소스)'
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - ec2_only
+          - security_group_only
+
+jobs:
+  validate-confirm:
+    name: Confirm check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+            echo "확인 문자열이 올바르지 않습니다. 'destroy'를 입력해주세요."
+            exit 1
+          fi
+
+  destroy:
+    name: Terraform destroy
+    needs: validate-confirm
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: terraform_files
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform destroy (all)
+        if: github.event.inputs.target == 'all'
+        run: terraform destroy -auto-approve
+
+      - name: Terraform destroy (EC2 only)
+        if: github.event.inputs.target == 'ec2_only'
+        run: |
+          terraform destroy -auto-approve \
+            -target=aws_instance.bastion \
+            -target=aws_instance.web \
+            -target=aws_instance.app \
+            -target=aws_instance.db
+
+      - name: Terraform destroy (security group only)
+        if: github.event.inputs.target == 'security_group_only'
+        run: |
+          terraform destroy -auto-approve \
+            -target=aws_security_group.bastion \
+            -target=aws_security_group.web \
+            -target=aws_security_group.app \
+            -target=aws_security_group.db
