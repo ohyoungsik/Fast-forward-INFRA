@@ -1,36 +1,24 @@
-# inventory.yml.tpl
 all:
   children:
     bastion:
       hosts:
         bastion-server:
           ansible_host: "${bastion_public_ip}"
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: "../terraform_files/${key_name}.pem"
     web:
       hosts:
-        nginx-fe-server:
-          ansible_host: "${nginx_private_ip}"
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: "../terraform_files/${key_name}.pem"
-          ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i ${key_path}/${key_name}.pem
-          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${bastion_public_ip}\"
-          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        %{~ for ip in nginx_private_ips ~}
+        nginx-fe-server-${ip}:
+          ansible_host: "${ip}"
+        %{~ endfor ~}
     was:
       hosts:
-        fastapi-be-server:
-          ansible_host: "${fastapi_private_ip}"
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: "../terraform_files/${key_name}.pem"
-          ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i ${key_path}/${key_name}.pem
-          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${bastion_public_ip}\"
-          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        %{~ for ip in fastapi_private_ips ~}
+        fastapi-be-server-${ip}:
+          ansible_host: "${ip}"
+        %{~ endfor ~}
     db:
       hosts:
-        postgre-db-server:
-          ansible_host: "${postgre_private_ip}"
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: "../terraform_files/${key_name}.pem"
-          ansible_ssh_common_args: "-o ProxyCommand=\"ssh -W %h:%p -i ${key_path}/${key_name}.pem
-          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${bastion_public_ip}\"
-          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        %{~ for ip in postgre_private_ips ~}
+        postgre-db-server-${ip}:
+          ansible_host: "${ip}"
+        %{~ endfor ~}

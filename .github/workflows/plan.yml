@@ -1,4 +1,4 @@
-# PR -> dev 시 실행
+# PR -> feat/github_action 시 실행
 # terraform plan -out=tfplan
 # 결과를 PR 코멘트로 자동 등록 (접기/펼치기 포함)
 # tfplan 바이너리를 artifact로 7일 보관
@@ -8,7 +8,7 @@ name: Terraform plan
 
 on:
   pull_request:
-    branches: [dev]
+    branches: [feat/github_action]
     paths:
       - "terraform_files/**"
     types: [opened, synchronize, reopened]

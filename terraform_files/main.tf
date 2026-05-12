@@ -112,21 +112,21 @@ resource "aws_route_table_association" "private_assoc" {
 
 # pem 파일 관련 작업
 # 알고리즘 결정
-resource "tls_private_key" "pk" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-# 키등록
-resource "aws_key_pair" "kp" {
-  key_name   = var.key_name
-  public_key = tls_private_key.pk.public_key_openssh
-}
-# 개인키 가져오기
-resource "local_file" "project_key_pem" {
-  filename        = "${path.module}/${var.key_name}.pem"
-  content         = tls_private_key.pk.private_key_pem
-  file_permission = "0600"
-}
+# resource "tls_private_key" "pk" {
+#   algorithm = "RSA"
+#   rsa_bits  = 4096
+# }
+# # 키등록
+# resource "aws_key_pair" "kp" {
+#   key_name   = var.key_name
+#   public_key = tls_private_key.pk.public_key_openssh
+# }
+# # 개인키 가져오기
+# resource "local_file" "project_key_pem" {
+#   filename        = "${path.module}/${var.key_name}.pem"
+#   content         = tls_private_key.pk.private_key_pem
+#   file_permission = "0600"
+# }
 
 # -------------------------
 # EC2
@@ -135,7 +135,7 @@ resource "aws_instance" "bastion_server" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
-  key_name                    = aws_key_pair.kp.key_name
+  key_name                    = var.key_name
   associate_public_ip_address = true
   private_ip                  = "172.16.10.50" # 172.16.10.10 은 사용중.... 
   root_block_device {
@@ -160,7 +160,7 @@ resource "aws_instance" "private_servers" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.private.id
-  key_name                    = aws_key_pair.kp.key_name
+  key_name                    = var.key_name
   private_ip                  = each.value.private_ip
   associate_public_ip_address = false
 
@@ -188,14 +188,24 @@ resource "aws_instance" "private_servers" {
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/inventory.yml.tpl", {
     bastion_public_ip  = aws_instance.bastion_server.public_ip
-    nginx_private_ip   = aws_instance.private_servers["nginx-fe-server"].private_ip
-    fastapi_private_ip = aws_instance.private_servers["fastapi-be-server"].private_ip
-    postgre_private_ip = aws_instance.private_servers["postgre-db-server"].private_ip
-    key_path           = abspath(path.module)
-    key_name           = var.key_name
+    # 3-tier 서버의 확장성을 고려하여 ip 주소를 리스트로 선언
+    nginx_private_ips  = [aws_instance.private_servers["nginx-fe-server"].private_ip]
+    fastapi_private_ips = [aws_instance.private_servers["fastapi-be-server"].private_ip]
+    postgre_private_ips = [aws_instance.private_servers["postgre-db-server"].private_ip]
   })
   filename = "../ansible_files/inventory.yml"
 }
+# resource "local_file" "ansible_inventory" {
+#   content = templatefile("${path.module}/inventory.yml.tpl", {
+#     bastion_public_ip  = aws_instance.bastion_server.public_ip
+#     nginx_private_ip   = aws_instance.private_servers["nginx-fe-server"].private_ip
+#     fastapi_private_ip = aws_instance.private_servers["fastapi-be-server"].private_ip
+#     postgre_private_ip = aws_instance.private_servers["postgre-db-server"].private_ip
+#     key_path           = abspath(path.module)
+#     key_name           = var.key_name
+#   })
+#   filename = "../ansible_files/inventory.yml"
+# }
 
 # main.tf 또는 별도 ansible.tf에 추가
 

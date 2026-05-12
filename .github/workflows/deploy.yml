@@ -1,29 +1,27 @@
-# deploy.yml — dev 머지 시 실행
-# PR에서 저장한 tfplan artifact 그대로 apply (새 plan 안 함)
-# terraform output으로 inventory.yml 생성 후 artifact로 전달
-# ansible.cfg에 bastion IP 동적 주입
-# terraform_files만 바뀌면 ansible도 같이 실행, ansible_files만 바뀌면 ansible만 실행
+# deploy.yml — feat/github_action 머지 시 실행
 
-name: Deploy
-
+# feat/github_action 브랜치에 push될 때 실행 (PR 머지 포함)
+# terraform 또는 ansible 파일이 변경된 경우에만 실행
 on:
   push:
-    branches: [dev]
+    branches: [feat/github_action]
     paths:
       - "terraform_files/**"
       - "ansible_files/**"
-
+ 
 jobs:
+  # 어떤 파일이 바뀌었는지 감지 → 이후 job 실행 여부 결정
   changed-files:
     name: Detect changed files
     runs-on: ubuntu-latest
     outputs:
       terraform: ${{ steps.filter.outputs.terraform }}
       ansible: ${{ steps.filter.outputs.ansible }}
-
+ 
     steps:
       - uses: actions/checkout@v4
-
+ 
+      # terraform_files, ansible_files 중 어느 쪽이 변경됐는지 판단
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -32,67 +30,80 @@ jobs:
               - 'terraform_files/**'
             ansible:
               - 'ansible_files/**'
-
+ 
+  # terraform_files가 변경된 경우에만 실행
   terraform-apply:
     name: Terraform apply
     needs: changed-files
     if: needs.changed-files.outputs.terraform == 'true'
     runs-on: ubuntu-latest
-    environment: production
+    environment: production  # GitHub environment 보호 규칙 적용 (수동 승인)
     defaults:
       run:
         working-directory: terraform_files
-    outputs:
-      bastion_ip: ${{ steps.output.outputs.bastion_ip }}
-      inventory_content: ${{ steps.output.outputs.inventory_content }}
-
+ 
     steps:
       - uses: actions/checkout@v4
-
+ 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_wrapper: false
-
+          terraform_wrapper: false  # output 명령어 파싱 오류 방지
+ 
+      # GitHub Secrets에 등록된 팀장님 AWS 키로 인증
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
-
+ 
+      # S3 remote backend 연결 및 provider 초기화
       - name: Terraform init
         run: terraform init
-
+ 
+      # plan.yml에서 저장한 tfplan artifact를 가져오기 위해 PR 번호 필요
       - name: Get PR number
         id: pr
         run: |
-          PR_NUMBER=$(gh pr list --state merged --base dev \
-            --json number --jq '.[0].number')
+          PR_NUMBER=$(gh pr list --state merged --base feat/github_action \
+            --json number,mergeCommit \
+            --jq '.[] | select(.mergeCommit.oid == "${{ github.sha }}") | .number')
           echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+ 
+      # PR 시점에 저장해둔 tfplan 바이너리 다운로드
+      # retention-days 경과 등으로 artifact가 없어도 continue-on-error로 계속 진행
       - name: Download plan artifact
+        id: download
         uses: actions/download-artifact@v4
         with:
           name: tfplan-${{ steps.pr.outputs.number }}
           path: terraform_files/
-
+        continue-on-error: true
+ 
+      # artifact가 없을 때만 새로 plan 실행
+      - name: Terraform plan (artifact 없을 때만 실행)
+        if: steps.download.outcome == 'failure'
+        run: terraform plan -out=tfplan
+ 
+      # apply 완료 시 main.tf의 local_file 리소스가
+      # inventory.yml, ansible.cfg를 ../ansible_files/에 자동 생성
       - name: Terraform apply
         run: terraform apply tfplan
-
-      - name: Export outputs
-        id: output
-        run: |
-          echo "bastion_ip=$(terraform output -raw bastion_ip)" >> $GITHUB_OUTPUT
-          terraform output -raw inventory_content > ../ansible_files/inventory.yml
-
-      - name: Upload inventory artifact
+ 
+      # ansible job은 별도 runner에서 실행되므로 파일을 artifact로 전달
+      # artifact: GitHub Actions에서 job 간에 파일을 주고받기 위한 임시 파일 저장소
+      - name: Upload ansible files artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ansible-inventory
-          path: ansible_files/inventory.yml
+          name: ansible-files
+          path: |
+            ansible_files/inventory.yml
+            ansible_files/ansible.cfg
           retention-days: 1
-
+ 
+  # terraform 또는 ansible 파일이 변경된 경우 실행
+  # terraform이 바뀌면 인프라가 새로 뜨므로 ansible도 항상 같이 실행
   ansible-configure:
     name: Ansible configure
     needs: [changed-files, terraform-apply]
@@ -102,36 +113,173 @@ jobs:
       (needs.changed-files.outputs.ansible == 'true' ||
        needs.changed-files.outputs.terraform == 'true')
     runs-on: ubuntu-latest
-
+ 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download inventory artifact
+ 
+      # terraform job에서 생성된 inventory.yml, ansible.cfg 수신
+      - name: Download ansible files artifact
         uses: actions/download-artifact@v4
         with:
-          name: ansible-inventory
+          name: ansible-files
           path: ansible_files/
-
+ 
+      # GitHub Secrets의 SSH_PRIVATE_KEY로 키 파일 생성
+      # bastion 및 ProxyCommand 경유 서버 접속에 사용
+      # 공개키는 미리 aws_key_pair에 등록되어있어야 한다
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-
-      - name: Inject bastion IP into ansible.cfg
-        run: |
-          sed -i "s/BASTION_IP/${{ needs.terraform-apply.outputs.bastion_ip }}/g" \
-            ansible_files/ansible.cfg
-
+ 
       - name: Install ansible
         run: pip install ansible --break-system-packages
-
+ 
+      # requirements.yml에 정의된 role 설치
       - name: Install ansible requirements
         working-directory: ansible_files
-        run: ansible-galaxy install -r requirements.yml
-
+        run: |
+          ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
+          ansible-galaxy collection install prometheus.prometheus
+          ansible-galaxy collection install grafana.grafana
+ 
+      # terraform이 생성한 inventory.yml로 대상 서버 지정
+      # ansible.cfg의 ProxyCommand로 bastion 경유 접속
       - name: Run playbook
         working-directory: ansible_files
         run: |
-          ansible-playbook -i inventory.yml site.yml \
+          ansible-playbook -f -1 -i inventory.yml site.yml \
             --private-key ~/.ssh/id_ed25519
+
+# name: Deploy
+
+# on:
+#   push:
+#     branches: [feat/github_action]
+#     paths:
+#       - "terraform_files/**"
+#       - "ansible_files/**"
+
+# jobs:
+#   changed-files:
+#     name: Detect changed files
+#     runs-on: ubuntu-latest
+#     outputs:
+#       terraform: ${{ steps.filter.outputs.terraform }}
+#       ansible: ${{ steps.filter.outputs.ansible }}
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - uses: dorny/paths-filter@v3
+#         id: filter
+#         with:
+#           filters: |
+#             terraform:
+#               - 'terraform_files/**'
+#             ansible:
+#               - 'ansible_files/**'
+
+#   terraform-apply:
+#     name: Terraform apply
+#     needs: changed-files
+#     if: needs.changed-files.outputs.terraform == 'true'
+#     runs-on: ubuntu-latest
+#     environment: production
+#     defaults:
+#       run:
+#         working-directory: terraform_files
+#     outputs:
+#       bastion_ip: ${{ steps.output.outputs.bastion_ip }}
+#       inventory_content: ${{ steps.output.outputs.inventory_content }}
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_wrapper: false
+
+#       - uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ap-northeast-2
+
+#       - name: Terraform init
+#         run: terraform init
+
+#       - name: Get PR number
+#         id: pr
+#         run: |
+#           PR_NUMBER=$(gh pr list --state merged --base dev \
+#             --json number --jq '.[0].number')
+#           echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+#       - name: Download plan artifact
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: tfplan-${{ steps.pr.outputs.number }}
+#           path: terraform_files/
+
+#       - name: Terraform apply
+#         run: terraform apply tfplan
+
+#       - name: Export outputs
+#         id: output
+#         run: |
+#           echo "bastion_ip=$(terraform output -raw bastion_ip)" >> $GITHUB_OUTPUT
+#           terraform output -raw inventory_content > ../ansible_files/inventory.yml
+
+#       - name: Upload inventory artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: ansible-inventory
+#           path: ansible_files/inventory.yml
+#           retention-days: 1
+
+#   ansible-configure:
+#     name: Ansible configure
+#     needs: [changed-files, terraform-apply]
+#     if: |
+#       always() &&
+#       !failure() &&
+#       (needs.changed-files.outputs.ansible == 'true' ||
+#        needs.changed-files.outputs.terraform == 'true')
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Download inventory artifact
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: ansible-inventory
+#           path: ansible_files/
+
+#       - name: Setup SSH
+#         run: |
+#           mkdir -p ~/.ssh
+#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+#           chmod 600 ~/.ssh/id_ed25519
+
+#       - name: Inject bastion IP into ansible.cfg
+#         run: |
+#           sed -i "s/BASTION_IP/${{ needs.terraform-apply.outputs.bastion_ip }}/g" \
+#             ansible_files/ansible.cfg
+
+#       - name: Install ansible
+#         run: pip install ansible --break-system-packages
+
+#       - name: Install ansible requirements
+#         working-directory: ansible_files
+#         run: ansible-galaxy install -r requirements.yml
+
+#       - name: Run playbook
+#         working-directory: ansible_files
+#         run: |
+#           ansible-playbook -i inventory.yml site.yml \
+#             --private-key ~/.ssh/id_ed25519
