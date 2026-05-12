@@ -1,0 +1,28 @@
+[
+    {
+        "label": "FastAPI",
+        "importPath": "fastapi",
+        "description": "fastapi",
+        "isExtraImport": true,
+        "detail": "fastapi",
+        "documentation": {}
+    },
+    {
+        "label": "hello",
+        "kind": 2,
+        "importPath": "ansible_files.roles.was.files.main",
+        "description": "ansible_files.roles.was.files.main",
+        "peekOfCode": "def hello():\n    return {\"message\": \"hello world\"}",
+        "detail": "ansible_files.roles.was.files.main",
+        "documentation": {}
+    },
+    {
+        "label": "app",
+        "kind": 5,
+        "importPath": "ansible_files.roles.was.files.main",
+        "description": "ansible_files.roles.was.files.main",
+        "peekOfCode": "app = FastAPI()\n@app.get(\"/\")\ndef hello():\n    return {\"message\": \"hello world\"}",
+        "detail": "ansible_files.roles.was.files.main",
+        "documentation": {}
+    }
+]

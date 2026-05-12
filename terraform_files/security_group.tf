@@ -108,3 +108,25 @@ resource "aws_security_group_rule" "fastapi_to_prometheus" {
   security_group_id        = aws_security_group.bastion_sg.id
   source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
 }
+
+# 프로메테우스 웹 접속
+resource "aws_security_group_rule" "prometheus_from_my_ip" {
+  type              = "ingress"
+  description       = "Prometheus from my IP"
+  from_port         = 9090
+  to_port           = 9090
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+# 그라파나 웹접속 
+resource "aws_security_group_rule" "grafana_from_my_ip" {
+  type              = "ingress"
+  description       = "Grafana from my IP"
+  from_port         = 3000
+  to_port           = 3000
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks = ["0.0.0.0/0"]
+}
