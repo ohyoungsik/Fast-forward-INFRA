@@ -6,12 +6,30 @@
 
 name: Destroy
 
+# 일회성, 바로 수정해야 할 것
 on:
   push:
     branches:
       - feat/github_action
     paths:
-      - '.github/workflows/destroy.yml'  # 이 파일 수정할 때만 트리거
+      - '.github/workflows/destroy.yml'
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       confirm:
+#         description: '정말 삭제하시겠습니까? "destroy"를 입력하세요'
+#         required: true
+#         type: string
+#       target:
+#         description: '삭제 대상 (전체 삭제 또는 특정 리소스)'
+#         required: true
+#         type: choice
+#         default: all
+#         options:
+#           - all
+#           - ec2_only
+#           - security_group_only
 
 jobs:
   validate-confirm:

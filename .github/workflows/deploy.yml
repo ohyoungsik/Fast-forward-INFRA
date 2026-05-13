@@ -8,6 +8,8 @@ on:
     paths:
       - "terraform_files/**"
       - "ansible_files/**"
+    paths-ignore:
+      - '.github/workflows/destroy.yml'
  
 jobs:
   # 어떤 파일이 바뀌었는지 감지 → 이후 job 실행 여부 결정
