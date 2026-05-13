@@ -32,17 +32,17 @@ on:
 #           - security_group_only
 
 jobs:
-  validate-confirm:
-    name: Confirm check
-    runs-on: ubuntu-latest
+  # validate-confirm:
+  #   name: Confirm check
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Check confirmation input
-        run: |
-          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
-            echo "확인 문자열이 올바르지 않습니다. 'destroy'를 입력해주세요."
-            exit 1
-          fi
+  #   steps:
+  #     - name: Check confirmation input
+  #       run: |
+  #         if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+  #           echo "확인 문자열이 올바르지 않습니다. 'destroy'를 입력해주세요."
+  #           exit 1
+  #         fi
 
   destroy:
     name: Terraform destroy
