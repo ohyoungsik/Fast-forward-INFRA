@@ -148,7 +148,7 @@ resource "aws_instance" "bastion_server" {
   ]
 
   tags = {
-    Name = "bastion-server"
+    Name = "testfor-bastion-server"
     Role = "public-bastion"
   }
 }

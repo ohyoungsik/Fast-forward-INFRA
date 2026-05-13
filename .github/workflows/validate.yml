@@ -10,6 +10,7 @@ on:
     paths:
       - "terraform_files/**"
       - "ansible_files/**"
+      - ".github/workflows/**"
 
 jobs:
   terraform-validate:

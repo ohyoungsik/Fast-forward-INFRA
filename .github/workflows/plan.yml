@@ -11,6 +11,7 @@ on:
     branches: [feat/github_action]
     paths:
       - "terraform_files/**"
+      - ".github/workflows/**"
     types: [opened, synchronize, reopened]
 
 jobs:

@@ -8,6 +8,7 @@ on:
     paths:
       - "terraform_files/**"
       - "ansible_files/**"
+      - ".github/workflows/**"
     # paths-ignore:
     #   - '.github/workflows/destroy.yml'
  
