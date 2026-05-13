@@ -281,48 +281,48 @@ resource "terraform_data" "wait_for_instance" {
 
 
 # 우선 주석 처리 
-resource "terraform_data" "ansible_run" {
-  # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
-  depends_on = [
+# resource "terraform_data" "ansible_run" {
+#   # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
+#   depends_on = [
 
-    # inventory 생성 완료
-    local_file.ansible_inventory,
+#     # inventory 생성 완료
+#     local_file.ansible_inventory,
 
-    # prometheus 변수 생성 완료
-    local_file.prometheus_vars,
+#     # prometheus 변수 생성 완료
+#     local_file.prometheus_vars,
 
-    # EC2 생성 완료 + SSH 대기 완료
-    terraform_data.wait_for_instance,
+#     # EC2 생성 완료 + SSH 대기 완료
+#     terraform_data.wait_for_instance,
 
-    # NAT 및 private 인터넷 경로 준비 완료
-    aws_nat_gateway.nat,
-    aws_route.private_nat_route,
+#     # NAT 및 private 인터넷 경로 준비 완료
+#     aws_nat_gateway.nat,
+#     aws_route.private_nat_route,
 
-    # public route도 명시적으로 보장
-    aws_route.public_internet_route
-  ]
+#     # public route도 명시적으로 보장
+#     aws_route.public_internet_route
+#   ]
 
-  triggers_replace = concat(
-    [aws_instance.bastion_server.id],
-    [for instance in aws_instance.private_servers : instance.id]
-  )
+#   triggers_replace = concat(
+#     [aws_instance.bastion_server.id],
+#     [for instance in aws_instance.private_servers : instance.id]
+#   )
 
-  provisioner "local-exec" {
-    working_dir = "${path.module}/../ansible_files"
-    # scp -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}:~/.ssh
-    # Bastion 서버에 pem 키 파일 복사
-    # (Bastion -> Private SSH 접속을 위해 필요)
-    # 개행 기호를 넣으면 깨질 수 있으므로 한 줄로 작성
+#   provisioner "local-exec" {
+#     working_dir = "${path.module}/../ansible_files"
+#     # scp -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}:~/.ssh
+#     # Bastion 서버에 pem 키 파일 복사
+#     # (Bastion -> Private SSH 접속을 위해 필요)
+#     # 개행 기호를 넣으면 깨질 수 있으므로 한 줄로 작성
 
-    # ssh -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip} "chmod 400 ~/.ssh/${var.key_name}.pem"
-    # Bastion 서버 내부의 pem 권한 설정
-    # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
-    command       = <<EOT
+#     # ssh -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip} "chmod 400 ~/.ssh/${var.key_name}.pem"
+#     # Bastion 서버 내부의 pem 권한 설정
+#     # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
+#     command       = <<EOT
   
-      ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
-      ansible-galaxy collection install prometheus.prometheus
-      ansible-galaxy collection install grafana.grafana
-      ansible-playbook -f 1 site.yml
-    EOT
-  }
-}
+#       ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
+#       ansible-galaxy collection install prometheus.prometheus
+#       ansible-galaxy collection install grafana.grafana
+#       ansible-playbook -f 1 site.yml
+#     EOT
+#   }
+# }
