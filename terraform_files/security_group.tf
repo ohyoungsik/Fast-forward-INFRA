@@ -3,31 +3,6 @@ resource "aws_security_group" "bastion_sg" {
   description = "Security group for bastion server"
   vpc_id      = aws_vpc.main.id
 
- 
-  ingress {
-    description = "SSH from my IP"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # 해당 부분을 내 IP로만 하면 내 IP 만 ssh 접속이 가능 우선은 테스트
-  }
-
-  ingress {
-    description = "HTTP from internet for reverse proxy"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS from internet"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   egress {
     description = "Allow all outbound"
     from_port   = 0
@@ -48,14 +23,6 @@ resource "aws_security_group" "private_server_sg" {
   description = "Security group for ${each.key}"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description     = "SSH from bastion"
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.bastion_sg.id]
-  }
-
   egress {
     description = "Allow all outbound"
     from_port   = 0
@@ -67,6 +34,82 @@ resource "aws_security_group" "private_server_sg" {
   tags = {
     Name = "${var.project_name}-${each.key}-sg"
   }
+}
+
+# ── Bastion SG ingress rules ──────────────────────────────────────────────────
+
+resource "aws_security_group_rule" "bastion_ssh" {
+  type              = "ingress"
+  description       = "SSH from my IP"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "bastion_http" {
+  type              = "ingress"
+  description       = "HTTP from internet for reverse proxy"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "bastion_https" {
+  type              = "ingress"
+  description       = "HTTPS from internet"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "fastapi_to_prometheus" {
+  type                     = "ingress"
+  description              = "Prometheus from FastAPI server"
+  from_port                = 9090
+  to_port                  = 9090
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.bastion_sg.id
+  source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
+}
+
+resource "aws_security_group_rule" "prometheus_from_my_ip" {
+  type              = "ingress"
+  description       = "Prometheus from my IP"
+  from_port         = 9090
+  to_port           = 9090
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "grafana_from_my_ip" {
+  type              = "ingress"
+  description       = "Grafana from my IP"
+  from_port         = 3000
+  to_port           = 3000
+  protocol          = "tcp"
+  security_group_id = aws_security_group.bastion_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+# ── Private server SG ingress rules ──────────────────────────────────────────
+
+resource "aws_security_group_rule" "private_ssh_from_bastion" {
+  for_each = var.private_servers
+
+  type                     = "ingress"
+  description              = "SSH from bastion"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.private_server_sg[each.key].id
+  source_security_group_id = aws_security_group.bastion_sg.id
 }
 
 resource "aws_security_group_rule" "bastion_to_nginx_http" {
@@ -97,36 +140,4 @@ resource "aws_security_group_rule" "fastapi_to_postgres" {
   protocol                 = "tcp"
   security_group_id        = aws_security_group.private_server_sg["postgre-db-server"].id
   source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
-}
-
-resource "aws_security_group_rule" "fastapi_to_prometheus" {
-  type                     = "ingress"
-  description              = "Prometheus from FastAPI server"
-  from_port                = 9090
-  to_port                  = 9090
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.bastion_sg.id
-  source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
-}
-
-# 프로메테우스 웹 접속
-resource "aws_security_group_rule" "prometheus_from_my_ip" {
-  type              = "ingress"
-  description       = "Prometheus from my IP"
-  from_port         = 9090
-  to_port           = 9090
-  protocol          = "tcp"
-  security_group_id = aws_security_group.bastion_sg.id
-  cidr_blocks = ["0.0.0.0/0"]
-}
-
-# 그라파나 웹접속 
-resource "aws_security_group_rule" "grafana_from_my_ip" {
-  type              = "ingress"
-  description       = "Grafana from my IP"
-  from_port         = 3000
-  to_port           = 3000
-  protocol          = "tcp"
-  security_group_id = aws_security_group.bastion_sg.id
-  cidr_blocks = ["0.0.0.0/0"]
 }
