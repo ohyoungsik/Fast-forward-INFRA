@@ -12,7 +12,7 @@ terraform {
     bucket         = "fastforward-tfstate"
     key            = "prod/terraform.tfstate"
     region         = "ap-northeast-2"
-    dynamodb_table = "terraform-lock"
+    use_lockfile   = true 
     encrypt        = true
   }
 }
