@@ -8,49 +8,49 @@
 name: Destroy
 
 # 일회성, 바로 수정해야 할 것
-on:
-  push:
-    branches:
-      - feat/github_action
-    paths:
-      - '.github/workflows/destroy.yml'
+# on:
+#   push:
+#     branches:
+#       - feat/github_action
+#     paths:
+#       - '.github/workflows/destroy.yml'
 
 # 이거 임시로 destroy할때만 꺼두기
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       confirm:
-#         description: '정말 삭제하시겠습니까? "destroy"를 입력하세요'
-#         required: true
-#         type: string
-#       target:
-#         description: '삭제 대상 (전체 삭제 또는 특정 리소스)'
-#         required: true
-#         type: choice
-#         default: all
-#         options:
-#           - all
-#           - ec2_only
-#           - security_group_only
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '정말 삭제하시겠습니까? "destroy"를 입력하세요'
+        required: true
+        type: string
+      target:
+        description: '삭제 대상 (전체 삭제 또는 특정 리소스)'
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - ec2_only
+          - security_group_only
 
 jobs:
   # 이거 임시로 destroy할때만 꺼두기
-  # validate-confirm:
-  #   name: Confirm check
-  #   runs-on: ubuntu-latest
+  validate-confirm:
+    name: Confirm check
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Check confirmation input
-  #       run: |
-  #         if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
-  #           echo "확인 문자열이 올바르지 않습니다. 'destroy'를 입력해주세요."
-  #           exit 1
-  #         fi
+    steps:
+      - name: Check confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+            echo "확인 문자열이 올바르지 않습니다. 'destroy'를 입력해주세요."
+            exit 1
+          fi
 
   destroy:
     name: Terraform destroy
     # 이거 임시로 destroy할때만 꺼두기
-    # needs: validate-confirm
+    needs: validate-confirm
     runs-on: ubuntu-latest
     environment: production
     defaults:
@@ -74,8 +74,8 @@ jobs:
         run: terraform init
 
       - name: Terraform destroy (all)
-        # if: github.event.inputs.target == 'all'
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
+        if: github.event.inputs.target == 'all'
+        # if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
         run: terraform destroy -auto-approve
 
       - name: Terraform destroy (EC2 only)

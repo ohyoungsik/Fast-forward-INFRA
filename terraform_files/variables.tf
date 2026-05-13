@@ -3,7 +3,7 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  default = "log-monitoring"
+  default = "testfor-log-monitoring"
 }
 
 variable "vpc_cidr" {
