@@ -19,6 +19,10 @@
     # - 애플리케이션(DB 접속용) 계정 생성
     # - SUPERUSER 권한은 부여하지 않음
 
+- name: DEBUG postgres role is running @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ create user FFF
+  debug:
+    msg: "PostgreSQL role is running on {{ inventory_hostname }}"
+
 - name: grant database privileges
   become_user: postgres
   postgresql_privs:
@@ -80,7 +84,7 @@
     objs: SEQUENCES
     schema: public
     privs: USAGE,SELECT,UPDATE
-    # - 이후 생성되는 sequence에도 기본 권한 자동 적용
+    # - 이후 생성되는 sequence에도 기본 권한 자동 적용\
 
 - name: allow postgresql listen on all interfaces
   lineinfile:
@@ -100,6 +104,10 @@
   become: yes
   notify: restart postgresql
   # - FastAPI 서버 IP 접근 허용
+
+- name: fastapi server to connect postgresql !!!!!!!!!!!!!!!!!!!!!! end before
+  debug:
+    msg: "PostgreSQL role is running on {{ inventory_hostname }}"
 
 - name: apply postgresql restart immediately
   meta: flush_handlers
