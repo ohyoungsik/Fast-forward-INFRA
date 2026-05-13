@@ -151,7 +151,7 @@ jobs:
       - name: Run playbook
         working-directory: ansible_files
         run: |
-          ansible-playbook -f -1 -i inventory.yml site.yml \
+          ansible-playbook -f 1 -i inventory.yml site.yml \
             --private-key ~/.ssh/id_ed25519
 
 # name: Deploy
