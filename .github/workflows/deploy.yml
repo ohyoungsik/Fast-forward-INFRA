@@ -62,6 +62,10 @@ jobs:
       # S3 remote backend 연결 및 provider 초기화
       - name: Terraform init
         run: terraform init
+
+      # 임시. 삭제할 것
+      - name: Terraform refresh      # 추가
+        run: terraform refresh
  
       # plan.yml에서 저장한 tfplan artifact를 가져오기 위해 PR 번호 필요
       - name: Get PR number
