@@ -85,7 +85,7 @@
 - name: allow postgresql listen on all interfaces
   lineinfile:
     path: /etc/postgresql/16/main/postgresql.conf
-    regexp: "^#?listen_addresses"
+    regexp: "^#?listen_addresses\\s*="
     line: "listen_addresses = '*'"
   become: yes
   notify: restart postgresql
@@ -94,9 +94,12 @@
 - name: allow fastapi server to connect postgresql
   lineinfile:
     path: /etc/postgresql/16/main/pg_hba.conf
-    regexp: "^host\\s+{{ postgres_db }}\\s+{{ postgres_user }}"
+    regexp: "^host\\s+{{ postgres_db }}\\s+{{ postgres_user }}\\s+172\\.16\\.20\\.20/32"
     line: "host    {{ postgres_db }}    {{ postgres_user }}    172.16.20.20/32    scram-sha-256"
     state: present
   become: yes
   notify: restart postgresql
   # - FastAPI 서버 IP 접근 허용
+
+- name: apply postgresql restart immediately
+  meta: flush_handlers
