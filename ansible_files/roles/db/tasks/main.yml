@@ -8,7 +8,6 @@
   become_user: postgres
   postgresql_db:
     name: "{{ postgres_db }}"
-    # - DB 생성은 postgres 슈퍼유저로 수행해야 함
     # - 애플리케이션에서 사용할 DB 생성
 
 - name: create user
@@ -16,24 +15,88 @@
   postgresql_user:
     name: "{{ postgres_user }}"
     password: "{{ postgres_password }}"
+    role_attr_flags: "LOGIN"
     # - 애플리케이션(DB 접속용) 계정 생성
+    # - SUPERUSER 권한은 부여하지 않음
 
-- name: grant db privilege
+- name: grant database privileges
   become_user: postgres
   postgresql_privs:
     db: "{{ postgres_db }}"
     role: "{{ postgres_user }}"
     type: database
-    privs: ALL
-    # - DB 전체 접근 권한 부여 (connect, create 등)
+    privs: CONNECT,CREATE,TEMPORARY
+    # - DB 연결 및 기본 생성 권한 부여
 
-- name: grant schema privilege
+- name: grant schema privileges
   become_user: postgres
   postgresql_privs:
     db: "{{ postgres_db }}"
     role: "{{ postgres_user }}"
     type: schema
     objs: public
-    privs: ALL
-    # - 실제 테이블 생성/조회는 schema 권한 필요
-    # - public schema에 권한 부여 (기본 스키마)
+    privs: USAGE,CREATE
+    # - public schema 사용 및 테이블 생성 권한
+
+- name: grant table privileges
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_user }}"
+    type: table
+    objs: ALL_IN_SCHEMA
+    schema: public
+    privs: SELECT,INSERT,UPDATE,DELETE
+    # - 테이블 CRUD 권한
+
+- name: grant sequence privileges
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_user }}"
+    type: sequence
+    objs: ALL_IN_SCHEMA
+    schema: public
+    privs: USAGE,SELECT,UPDATE
+    # - SERIAL / BIGSERIAL sequence 사용 권한
+
+- name: alter default table privileges
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_user }}"
+    type: default_privs
+    objs: TABLES
+    schema: public
+    privs: SELECT,INSERT,UPDATE,DELETE
+    # - 이후 생성되는 테이블에도 기본 권한 자동 적용
+
+- name: alter default sequence privileges
+  become_user: postgres
+  postgresql_privs:
+    db: "{{ postgres_db }}"
+    role: "{{ postgres_user }}"
+    type: default_privs
+    objs: SEQUENCES
+    schema: public
+    privs: USAGE,SELECT,UPDATE
+    # - 이후 생성되는 sequence에도 기본 권한 자동 적용
+
+- name: allow postgresql listen on all interfaces
+  lineinfile:
+    path: /etc/postgresql/16/main/postgresql.conf
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = '*'"
+  become: yes
+  notify: restart postgresql
+  # - 외부(FastAPI 서버) 접근 허용
+
+- name: allow fastapi server to connect postgresql
+  lineinfile:
+    path: /etc/postgresql/16/main/pg_hba.conf
+    regexp: "^host\\s+{{ postgres_db }}\\s+{{ postgres_user }}"
+    line: "host    {{ postgres_db }}    {{ postgres_user }}    172.16.20.20/32    scram-sha-256"
+    state: present
+  become: yes
+  notify: restart postgresql
+  # - FastAPI 서버 IP 접근 허용
