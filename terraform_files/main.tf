@@ -211,7 +211,7 @@ resource "local_file" "ansible_inventory" {
 
 resource "local_file" "ansible_cfg" {
   filename = "${path.module}/../ansible_files/ansible.cfg"
-  content  = templatefile("${path.module}/ansible.cfg.tpl", {
+  content  = templatefile("${path.module}/ansible_cfg.tpl", {
     bastion_ip = aws_instance.bastion_server.public_ip
     gen_path = path.module
   })
