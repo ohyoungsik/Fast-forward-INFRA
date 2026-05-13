@@ -98,8 +98,8 @@
 - name: allow fastapi server to connect postgresql
   lineinfile:
     path: /etc/postgresql/16/main/pg_hba.conf
-    regexp: "^host\\s+{{ postgres_db }}\\s+{{ postgres_user }}\\s+172\\.16\\.20\\.20/32"
-    line: "host    {{ postgres_db }}    {{ postgres_user }}    172.16.20.20/32    scram-sha-256"
+    regexp: "^host\\s+{{ postgres_db }}\\s+{{ postgres_user }}\\s+172\\.16\\.20\\.20/24"
+    line: "host    {{ postgres_db }}    {{ postgres_user }}    172.16.20.20/24    scram-sha-256"
     state: present
   become: yes
   notify: restart postgresql
