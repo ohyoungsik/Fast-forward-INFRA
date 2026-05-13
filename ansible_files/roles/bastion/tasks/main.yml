@@ -1,4 +1,31 @@
 ---
+# Nginx 설치 및 Reverse Proxy 설정
+- name: install nginx via galaxy
+  include_role:
+    name: geerlingguy.nginx
+
+- name: create web root directory
+  file:
+    path: /var/www/html
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: deploy bastion index.html
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: www-data
+    group: www-data
+    mode: '0644'
+
+- name: deploy bastion nginx reverse proxy config
+  template:
+    src: bastion-proxy.conf.j2
+    dest: /etc/nginx/sites-available/default
+  notify: restart nginx
+
 # Prometheus 설치 (collection)
 - name: install prometheus
   include_role:
