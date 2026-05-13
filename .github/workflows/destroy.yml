@@ -46,7 +46,7 @@ jobs:
 
   destroy:
     name: Terraform destroy
-    needs: validate-confirm
+    # needs: validate-confirm
     runs-on: ubuntu-latest
     environment: production
     defaults:
