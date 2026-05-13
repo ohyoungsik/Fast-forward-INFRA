@@ -74,7 +74,8 @@ jobs:
         run: terraform init
 
       - name: Terraform destroy (all)
-        if: github.event.inputs.target == 'all'
+        # if: github.event.inputs.target == 'all'
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
         run: terraform destroy -auto-approve
 
       - name: Terraform destroy (EC2 only)
