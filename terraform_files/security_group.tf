@@ -141,3 +141,15 @@ resource "aws_security_group_rule" "fastapi_to_postgres" {
   security_group_id        = aws_security_group.private_server_sg["postgre-db-server"].id
   source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
 }
+# 프로메테우스 가 각각 서버에 대해서 데이터를 가져오는 인바운드 규칙
+resource "aws_security_group_rule" "bastion_to_private_node_exporter" {
+  for_each = var.private_servers
+
+  type                     = "ingress"
+  description              = "Node Exporter from bastion prometheus"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.private_server_sg[each.key].id
+  source_security_group_id = aws_security_group.bastion_sg.id
+}
