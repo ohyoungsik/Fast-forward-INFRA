@@ -6,11 +6,7 @@ ERROR_LOG="/tmp/backup_error.log"
 > $ERROR_LOG
 exec 2> >(tee -a $ERROR_LOG >&2)
 
-# ========== AWS 인증 키 세팅 ==========
-export AWS_ACCESS_KEY_ID="aws"
-export AWS_SECRET_ACCESS_KEY="aws"
 export AWS_DEFAULT_REGION="ap-northeast-2"
-# ======================================
 
 BUCKET_NAME="fast-forward-backup"
 TIMESTAMP=$(TZ='Asia/Seoul' date +%Y%m%d_%H%M%S)
@@ -19,9 +15,6 @@ TIMESTAMP=$(TZ='Asia/Seoul' date +%Y%m%d_%H%M%S)
 BACKUP_PATH=$(mktemp /tmp/db_backup_${TIMESTAMP}_XXXXXX.dump)
 
 DB_HOST="172.16.20.30"
-DB_USER="scott"
-DB_NAME="scott_db"
-export PGPASSWORD="tiger"
 
 # ========== 알림 발송 함수 ==========
 send_alert() {
