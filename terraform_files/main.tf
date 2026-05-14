@@ -284,7 +284,7 @@ resource "terraform_data" "wait_for_instance" {
 }
 
 
-# 우선 주석 처리 
+# github actions 활용 시엔 action runner에서 자동으로 실행하는 부분.
 # resource "terraform_data" "ansible_run" {
 #   # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
 #   depends_on = [

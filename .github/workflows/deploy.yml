@@ -4,7 +4,7 @@
 # terraform 또는 ansible 파일이 변경된 경우에만 실행
 on:
   push:
-    branches: [feat/github_action]
+    branches: [main]
     paths:
       - "terraform_files/**"
       - "ansible_files/**"
