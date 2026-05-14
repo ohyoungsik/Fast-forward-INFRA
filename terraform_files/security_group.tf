@@ -1,6 +1,3 @@
-# ''를 테스트 용을 구분하기 위해 적어둔 게 있음.
-# 실제 배포 시엔  지워야 함.
-
 resource "aws_security_group" "bastion_sg" {
   name        = "${var.project_name}-bastion-sg"
   description = "Security group for bastion server"
