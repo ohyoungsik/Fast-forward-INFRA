@@ -222,34 +222,35 @@ resource "local_file" "ansible_cfg" {
 
 # Terraform에서 ansible_files/group_vars/all.yml 생성
 
-resource "local_file" "prometheus_vars" {
+# resource "local_file" "prometheus_vars" {
 
-  filename = "${path.module}/../ansible_files/group_vars/bastion.yml"
+#   filename = "${path.module}/../ansible_files/group_vars/bastion.yml"
 
-  content = yamlencode({
+#   content = yamlencode({
 
-    prometheus_targets = {
-      node = [
-        {
-          targets = [
+#     prometheus_targets = {
+#       node = [
+#         {
+#           targets = [
 
-            "${aws_instance.bastion_server.public_ip}:9100",
+#             # "${aws_instance.bastion_server.public_ip}:9100",
+#             "${aws_instance.bastion_server.private_ip}:9100",
 
-            "${aws_instance.private_servers["testfor-nginx-fe-server"].private_ip}:9100",
+#             "${aws_instance.private_servers["testfor-nginx-fe-server"].private_ip}:9100",
 
-            "${aws_instance.private_servers["testfor-fastapi-be-server"].private_ip}:9100",
+#             "${aws_instance.private_servers["testfor-fastapi-be-server"].private_ip}:9100",
 
-            "${aws_instance.private_servers["testfor-postgre-db-server"].private_ip}:9100"
-          ]
+#             "${aws_instance.private_servers["testfor-postgre-db-server"].private_ip}:9100"
+#           ]
 
-          labels = {
-            env = "lab"
-          }
-        }
-      ]
-    }
-  })
-}
+#           labels = {
+#             env = "lab"
+#           }
+#         }
+#       ]
+#     }
+#   })
+# }
 
 # cloud init 등 서버의 다양한 환경 초기화를 위해
 # ansible 실행 전 60초 간 대기
