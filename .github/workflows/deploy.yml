@@ -2,6 +2,8 @@
 
 # feat/github_action 브랜치에 push될 때 실행 (PR 머지 포함)
 # terraform 또는 ansible 파일이 변경된 경우에만 실행
+name: deploy
+
 on:
   push:
     branches: [main]
