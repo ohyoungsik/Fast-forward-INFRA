@@ -1,5 +1,5 @@
-# 'testfor-'를 테스트 용을 구분하기 위해 적어둔 게 있음.
-# 실제 배포 시엔 testfor- 지워야 함.
+# ''를 테스트 용을 구분하기 위해 적어둔 게 있음.
+# 실제 배포 시엔  지워야 함.
 
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -151,7 +151,7 @@ resource "aws_instance" "bastion_server" {
   ]
 
   tags = {
-    Name = "testfor-bastion-server"
+    Name = "bastion-server"
     Role = "public-bastion"
   }
 }
@@ -192,9 +192,9 @@ resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/inventory.yml.tpl", {
     bastion_public_ip  = aws_instance.bastion_server.public_ip
     # 3-tier 서버의 확장성을 고려하여 ip 주소를 리스트로 선언
-    nginx_private_ips  = [aws_instance.private_servers["testfor-nginx-fe-server"].private_ip]
-    fastapi_private_ips = [aws_instance.private_servers["testfor-fastapi-be-server"].private_ip]
-    postgre_private_ips = [aws_instance.private_servers["testfor-postgre-db-server"].private_ip]
+    nginx_private_ips  = [aws_instance.private_servers["nginx-fe-server"].private_ip]
+    fastapi_private_ips = [aws_instance.private_servers["fastapi-be-server"].private_ip]
+    postgre_private_ips = [aws_instance.private_servers["postgre-db-server"].private_ip]
   })
   filename = "../ansible_files/inventory.yml"
 }
@@ -236,11 +236,11 @@ resource "local_file" "ansible_cfg" {
 #             # "${aws_instance.bastion_server.public_ip}:9100",
 #             "${aws_instance.bastion_server.private_ip}:9100",
 
-#             "${aws_instance.private_servers["testfor-nginx-fe-server"].private_ip}:9100",
+#             "${aws_instance.private_servers["nginx-fe-server"].private_ip}:9100",
 
-#             "${aws_instance.private_servers["testfor-fastapi-be-server"].private_ip}:9100",
+#             "${aws_instance.private_servers["fastapi-be-server"].private_ip}:9100",
 
-#             "${aws_instance.private_servers["testfor-postgre-db-server"].private_ip}:9100"
+#             "${aws_instance.private_servers["postgre-db-server"].private_ip}:9100"
 #           ]
 
 #           labels = {

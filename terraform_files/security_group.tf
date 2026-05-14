@@ -1,5 +1,5 @@
-# 'testfor-'를 테스트 용을 구분하기 위해 적어둔 게 있음.
-# 실제 배포 시엔 testfor- 지워야 함.
+# ''를 테스트 용을 구분하기 위해 적어둔 게 있음.
+# 실제 배포 시엔  지워야 함.
 
 resource "aws_security_group" "bastion_sg" {
   name        = "${var.project_name}-bastion-sg"
@@ -121,7 +121,7 @@ resource "aws_security_group_rule" "bastion_to_nginx_http" {
   from_port                = 80
   to_port                  = 80
   protocol                 = "tcp"
-  security_group_id        = aws_security_group.private_server_sg["testfor-nginx-fe-server"].id
+  security_group_id        = aws_security_group.private_server_sg["nginx-fe-server"].id
   source_security_group_id = aws_security_group.bastion_sg.id
 }
 
@@ -131,8 +131,8 @@ resource "aws_security_group_rule" "nginx_to_fastapi" {
   from_port                = 8000
   to_port                  = 8000
   protocol                 = "tcp"
-  security_group_id        = aws_security_group.private_server_sg["testfor-fastapi-be-server"].id
-  source_security_group_id = aws_security_group.private_server_sg["testfor-nginx-fe-server"].id
+  security_group_id        = aws_security_group.private_server_sg["fastapi-be-server"].id
+  source_security_group_id = aws_security_group.private_server_sg["nginx-fe-server"].id
 }
 
 resource "aws_security_group_rule" "fastapi_to_postgres" {
@@ -141,8 +141,8 @@ resource "aws_security_group_rule" "fastapi_to_postgres" {
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
-  security_group_id        = aws_security_group.private_server_sg["testfor-postgre-db-server"].id
-  source_security_group_id = aws_security_group.private_server_sg["testfor-fastapi-be-server"].id
+  security_group_id        = aws_security_group.private_server_sg["postgre-db-server"].id
+  source_security_group_id = aws_security_group.private_server_sg["fastapi-be-server"].id
 }
 # 프로메테우스 가 각각 서버에 대해서 데이터를 가져오는 인바운드 규칙
 resource "aws_security_group_rule" "bastion_to_private_node_exporter" {
