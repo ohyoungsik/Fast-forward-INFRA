@@ -109,5 +109,24 @@
   debug:
     msg: "PostgreSQL role is running on {{ inventory_hostname }}"
 
+- name: copy db backup script
+  copy:
+    src: db_backup.sh
+    dest: /root/db_backup.sh
+    mode: '0755'
+  become: yes
+  # - 백업 스크립트를 DB 서버로 복사 및 실행 권한(0755) 부여
+
+- name: register db backup cron job
+  cron:
+    name: "Daily PostgreSQL S3 Backup"
+    minute: "0"
+    hour: "3"
+    job: "/root/db_backup.sh >> /var/log/db_backup.log 2>&1"
+    user: root
+  become: yes
+  # - 매일 새벽 3시 백업 스크립트 실행
+  # - 실행 결과 및 에러를 /var/log/db_backup.log 로 기록
+
 - name: apply postgresql restart immediately
   meta: flush_handlers
