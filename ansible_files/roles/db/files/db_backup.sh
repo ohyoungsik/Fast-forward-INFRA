@@ -8,7 +8,11 @@ exec 2> >(tee -a $ERROR_LOG >&2)
 
 export AWS_DEFAULT_REGION="ap-northeast-2"
 
-BUCKET_NAME="fast-forward-backup"
+# s3_env.sh 파일을 불러와서 $BUCKET_NAME 변수를 저장
+if [ -f /root/s3_env.sh ]; then
+    source /root/s3_env.sh
+fi
+
 TIMESTAMP=$(TZ='Asia/Seoul' date +%Y%m%d_%H%M%S)
 
 # mktemp으로 예측 불가능한 안전한 임시 파일 생성
@@ -27,6 +31,7 @@ send_alert() {
 
 - 발생 시간: $(date +'%Y-%m-%d %H:%M:%S')
 - 대상 서버: $DB_HOST ($DB_NAME)
+- 사용 버킷: $BUCKET_NAME
 - 상세 에러 내용:
 ${ERROR_DETAIL}"
 
@@ -51,8 +56,9 @@ trap 'send_alert' ERR
 # ========== 실제 백업 작업 ==========
 echo "------------------------------------------"
 echo "[$(date)] 백업 작업을 시작합니다."
+echo "✅ 대상 S3 버킷: $BUCKET_NAME"
 
-# 1. DB 추출
+# 1. DB 추출 (DB_USER, DB_NAME, PGPASSWORD는 크론탭이 주입해줍니다)
 pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME -F c -f $BACKUP_PATH
 echo "✅ DB 추출 성공: $BACKUP_PATH"
 

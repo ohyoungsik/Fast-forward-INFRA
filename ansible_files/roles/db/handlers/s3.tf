@@ -1,4 +1,4 @@
-# AWS 서울 리전 및 키 설정
+# AWS 서울 리전 및 키 설정 (GitHub Actions가 인증 키 주입)
 provider "aws" {
   region     = "ap-northeast-2"
 }
@@ -19,3 +19,9 @@ resource "aws_s3_bucket" "db_backup_bucket" {
   }
 }
 
+# 테라폼이 쉘 스크립트용 환경 변수 파일 생성
+resource "local_file" "s3_env" {
+  # 쉘 스크립트에서 바로 쓸 수 있게 'export' 문법으로 작성
+  content  = "export BUCKET_NAME=\"${aws_s3_bucket.db_backup_bucket.id}\""
+  filename = "../ansible_files/roles/db/files/s3_env.sh"
+}

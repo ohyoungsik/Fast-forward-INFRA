@@ -109,13 +109,21 @@
   debug:
     msg: "PostgreSQL role is running on {{ inventory_hostname }}"
 
+- name: copy s3 environment variables file
+  copy:
+    src: s3_env.sh
+    dest: /root/s3_env.sh
+    mode: '0644'
+  become: yes
+  # - 테라폼이 생성한 동적 버킷 이름 정보를 서버로 전달
+
 - name: copy db backup script
   copy:
     src: db_backup.sh
     dest: /root/db_backup.sh
     mode: '0755'
   become: yes
-  # - 백업 스크립트를 DB 서버로 복사 및 실행 권한(0755) 부여
+  # - 실행 권한(0755)을 포함하여 백업 스크립트 복사
 
 - name: register db backup cron job
   cron:
@@ -125,8 +133,7 @@
     job: "DB_USER={{ postgres_user }} DB_NAME={{ postgres_db }} PGPASSWORD={{ postgres_password }} /root/db_backup.sh >> /var/log/db_backup.log 2>&1"
     user: root
   become: yes
-  # - 매일 새벽 3시 백업 스크립트 실행
-  # - 실행 결과 및 에러를 /var/log/db_backup.log 로 기록
+  # - 매일 새벽 3시에 백업 스크립트가 실행되도록 등록 및 환경 변수 자동 주입
 
 - name: apply postgresql restart immediately
   meta: flush_handlers
