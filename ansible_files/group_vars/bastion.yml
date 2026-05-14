@@ -1,9 +1,15 @@
-"prometheus_targets":
-  "node":
-  - "labels":
-      "env": "lab"
-    "targets":
-    - "172.16.20.50:9100"
-    - "172.16.20.10:9100"
-    - "172.16.20.20:9100"
-    - "172.16.20.30:9100"
+# Fast-forward-INFRA/ansible_files/group_vars/bastion.yml
+
+# 기존엔 인스턴스 생성 시 bastion 서버에 할당되는 public IP를 활용하려
+# main.tf에서 bastion.yml을 생성하였으나,
+# 모든 노드에 대해 Private IP를 사용하기로 하여 bastion.yml은 로컬 파일로 저장
+
+prometheus_targets:
+  node:
+    - targets:
+        - 172.16.20.50:9100      # bastion private ip (예시)
+        - 172.16.20.10:9100      # nginx-fe-server
+        - 172.16.20.20:9100      # fastapi-be-server
+        - 172.16.20.30:9100      # postgre-db-server
+      labels:
+        env: lab

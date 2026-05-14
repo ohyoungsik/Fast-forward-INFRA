@@ -1,9 +1,12 @@
+# 'testfor-'를 테스트 용을 구분하기 위해 적어둔 게 있음.
+# 실제 배포 시엔 testfor- 지워야 함.
+
 variable "aws_region" {
   default = "ap-northeast-2"
 }
 
 variable "project_name" {
-  default = "log-monitoring"
+  default = "testfor-log-monitoring"
 }
 
 variable "vpc_cidr" {
@@ -34,15 +37,15 @@ variable "instance_type" {
 
 variable "private_servers" {
   default = {
-    nginx-fe-server = {
+    testfor-nginx-fe-server = {
       private_ip = "172.16.20.10"
     }
 
-    fastapi-be-server = {
+    testfor-fastapi-be-server = {
       private_ip = "172.16.20.20"
     }
 
-    postgre-db-server = {
+    testfor-postgre-db-server = {
       private_ip = "172.16.20.30"
     }
   }

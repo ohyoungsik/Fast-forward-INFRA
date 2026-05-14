@@ -1,3 +1,6 @@
+# 'testfor-'를 테스트 용을 구분하기 위해 적어둔 게 있음.
+# 실제 배포 시엔 testfor- 지워야 함.
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
@@ -112,21 +115,21 @@ resource "aws_route_table_association" "private_assoc" {
 
 # pem 파일 관련 작업
 # 알고리즘 결정
-resource "tls_private_key" "pk" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-# 키등록
-resource "aws_key_pair" "kp" {
-  key_name   = var.key_name
-  public_key = tls_private_key.pk.public_key_openssh
-}
-# 개인키 가져오기
-resource "local_file" "project_key_pem" {
-  filename        = "${path.module}/${var.key_name}.pem"
-  content         = tls_private_key.pk.private_key_pem
-  file_permission = "0600"
-}
+# resource "tls_private_key" "pk" {
+#   algorithm = "RSA"
+#   rsa_bits  = 4096
+# }
+# # 키등록
+# resource "aws_key_pair" "kp" {
+#   key_name   = var.key_name
+#   public_key = tls_private_key.pk.public_key_openssh
+# }
+# # 개인키 가져오기
+# resource "local_file" "project_key_pem" {
+#   filename        = "${path.module}/${var.key_name}.pem"
+#   content         = tls_private_key.pk.private_key_pem
+#   file_permission = "0600"
+# }
 
 # -------------------------
 # EC2
@@ -135,7 +138,7 @@ resource "aws_instance" "bastion_server" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
-  key_name                    = aws_key_pair.kp.key_name
+  key_name                    = var.key_name
   associate_public_ip_address = true
   private_ip                  = "172.16.10.50" # 172.16.10.10 은 사용중.... 
   root_block_device {
@@ -148,7 +151,7 @@ resource "aws_instance" "bastion_server" {
   ]
 
   tags = {
-    Name = "bastion-server"
+    Name = "testfor-bastion-server"
     Role = "public-bastion"
   }
 }
@@ -160,7 +163,7 @@ resource "aws_instance" "private_servers" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.private.id
-  key_name                    = aws_key_pair.kp.key_name
+  key_name                    = var.key_name
   private_ip                  = each.value.private_ip
   associate_public_ip_address = false
 
@@ -188,138 +191,66 @@ resource "aws_instance" "private_servers" {
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/inventory.yml.tpl", {
     bastion_public_ip  = aws_instance.bastion_server.public_ip
-    nginx_private_ip   = aws_instance.private_servers["nginx-fe-server"].private_ip
-    fastapi_private_ip = aws_instance.private_servers["fastapi-be-server"].private_ip
-    postgre_private_ip = aws_instance.private_servers["postgre-db-server"].private_ip
-    key_path           = abspath(path.module)
-    key_name           = var.key_name
+    # 3-tier 서버의 확장성을 고려하여 ip 주소를 리스트로 선언
+    nginx_private_ips  = [aws_instance.private_servers["testfor-nginx-fe-server"].private_ip]
+    fastapi_private_ips = [aws_instance.private_servers["testfor-fastapi-be-server"].private_ip]
+    postgre_private_ips = [aws_instance.private_servers["testfor-postgre-db-server"].private_ip]
   })
   filename = "../ansible_files/inventory.yml"
 }
-
 # resource "local_file" "ansible_inventory" {
-#   filename = "${path.module}/../ansible_files/inventory.yml"
-
-#   content = yamlencode({
-#     all = {
-#       children = {
-
-#         bastion = {
-#           hosts = {
-#             "bastion-server" = {
-#               ansible_host                 = aws_instance.bastion_server.public_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-#             }
-#           }
-#         }
-
-#         web = {
-#           hosts = {
-#             "nginx-fe-server" = {
-#               ansible_host                 = aws_instance.private_servers["nginx-fe-server"].private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
-#             }
-#           }
-#         }
-
-#         was = {
-#           hosts = {
-#             "fastapi-be-server" = {
-#               ansible_host                 = aws_instance.private_servers["fastapi-be-server"].private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
-#             }
-#           }
-#         }
-
-#         db = {
-#           hosts = {
-#             "postgre-db-server" = {
-#               ansible_host                 = aws_instance.private_servers["postgre-db-server"].private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${path.module}/${var.key_name}.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${aws_instance.bastion_server.public_ip}\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-#               # ansible_ssh_common_args = "-o ForwardAgent=yes -o ProxyJump=ubuntu@${aws_instance.bastion_server.public_ip}"
-#             }
-#           }
-#         }
-#       }
-#     }
+#   content = templatefile("${path.module}/inventory.yml.tpl", {
+#     bastion_public_ip  = aws_instance.bastion_server.public_ip
+#     nginx_private_ip   = aws_instance.private_servers["nginx-fe-server"].private_ip
+#     fastapi_private_ip = aws_instance.private_servers["fastapi-be-server"].private_ip
+#     postgre_private_ip = aws_instance.private_servers["postgre-db-server"].private_ip
+#     key_path           = abspath(path.module)
+#     key_name           = var.key_name
 #   })
+#   filename = "../ansible_files/inventory.yml"
 # }
 
-# resource "local_file" "ansible_inventory" {
-#   filename = "${path.module}/inventory.yml"
+# main.tf 또는 별도 ansible.tf에 추가
 
-#   content = yamlencode({
-#     all = {
-#       children = {
-#         bastion = {
-#           hosts = {
-#             "bastion-server" = {
-#               ansible_host                 = aws_instance.bastion_server.public_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-#             }
-#           }
-#         }
-
-#         private = {
-#           hosts = {
-#             for name, instance in aws_instance.private_servers :
-#             name => {
-#               ansible_host                 = instance.private_ip
-#               ansible_user                 = "ubuntu"
-#               ansible_ssh_private_key_file = "../terraform_files/${var.key_name}.pem"
-
-#               ansible_ssh_common_args = "-o ProxyCommand=\"ssh -W %h:%p -i ${abspath(path.module)}/${var.key_name}.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion_server.public_ip}\""
-#             }
-#           }
-#         }
-#       }
-#     }
-#   })
-# }
+resource "local_file" "ansible_cfg" {
+  filename = "${path.module}/../ansible_files/ansible.cfg"
+  content  = templatefile("${path.module}/ansible.cfg.tpl", {
+    bastion_ip = aws_instance.bastion_server.public_ip
+    gen_path = path.module
+  })
+}
 
 # Terraform에서 ansible_files/group_vars/all.yml 생성
 
-resource "local_file" "prometheus_vars" {
+# resource "local_file" "prometheus_vars" {
 
-  filename = "${path.module}/../ansible_files/group_vars/bastion.yml"
+#   filename = "${path.module}/../ansible_files/group_vars/bastion.yml"
 
-  content = yamlencode({
+#   content = yamlencode({
 
-    prometheus_targets = {
-      node = [
-        {
-          targets = [
+#     prometheus_targets = {
+#       node = [
+#         {
+#           targets = [
 
-            "${aws_instance.bastion_server.public_ip}:9100",
+#             # "${aws_instance.bastion_server.public_ip}:9100",
+#             "${aws_instance.bastion_server.private_ip}:9100",
 
-            "${aws_instance.private_servers["nginx-fe-server"].private_ip}:9100",
+#             "${aws_instance.private_servers["testfor-nginx-fe-server"].private_ip}:9100",
 
-            "${aws_instance.private_servers["fastapi-be-server"].private_ip}:9100",
+#             "${aws_instance.private_servers["testfor-fastapi-be-server"].private_ip}:9100",
 
-            "${aws_instance.private_servers["postgre-db-server"].private_ip}:9100"
-          ]
+#             "${aws_instance.private_servers["testfor-postgre-db-server"].private_ip}:9100"
+#           ]
 
-          labels = {
-            env = "lab"
-          }
-        }
-      ]
-    }
-  })
-}
+#           labels = {
+#             env = "lab"
+#           }
+#         }
+#       ]
+#     }
+#   })
+# }
 
 # cloud init 등 서버의 다양한 환경 초기화를 위해
 # ansible 실행 전 60초 간 대기
@@ -353,49 +284,49 @@ resource "terraform_data" "wait_for_instance" {
 }
 
 
-# 우선 주석 처리 
-resource "terraform_data" "ansible_run" {
-  # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
-  depends_on = [
+# github actions 활용 시엔 action runner에서 자동으로 실행하는 부분.
+# resource "terraform_data" "ansible_run" {
+#   # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
+#   depends_on = [
 
-    # inventory 생성 완료
-    local_file.ansible_inventory,
+#     # inventory 생성 완료
+#     local_file.ansible_inventory,
 
-    # prometheus 변수 생성 완료
-    local_file.prometheus_vars,
+#     # prometheus 변수 생성 완료
+#     local_file.prometheus_vars,
 
-    # EC2 생성 완료 + SSH 대기 완료
-    terraform_data.wait_for_instance,
+#     # EC2 생성 완료 + SSH 대기 완료
+#     terraform_data.wait_for_instance,
 
-    # NAT 및 private 인터넷 경로 준비 완료
-    aws_nat_gateway.nat,
-    aws_route.private_nat_route,
+#     # NAT 및 private 인터넷 경로 준비 완료
+#     aws_nat_gateway.nat,
+#     aws_route.private_nat_route,
 
-    # public route도 명시적으로 보장
-    aws_route.public_internet_route
-  ]
+#     # public route도 명시적으로 보장
+#     aws_route.public_internet_route
+#   ]
 
-  triggers_replace = concat(
-    [aws_instance.bastion_server.id],
-    [for instance in aws_instance.private_servers : instance.id]
-  )
+#   triggers_replace = concat(
+#     [aws_instance.bastion_server.id],
+#     [for instance in aws_instance.private_servers : instance.id]
+#   )
 
-  provisioner "local-exec" {
-    working_dir = "${path.module}/../ansible_files"
-    # scp -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}:~/.ssh
-    # Bastion 서버에 pem 키 파일 복사
-    # (Bastion -> Private SSH 접속을 위해 필요)
-    # 개행 기호를 넣으면 깨질 수 있으므로 한 줄로 작성
+#   provisioner "local-exec" {
+#     working_dir = "${path.module}/../ansible_files"
+#     # scp -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}:~/.ssh
+#     # Bastion 서버에 pem 키 파일 복사
+#     # (Bastion -> Private SSH 접속을 위해 필요)
+#     # 개행 기호를 넣으면 깨질 수 있으므로 한 줄로 작성
 
-    # ssh -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip} "chmod 400 ~/.ssh/${var.key_name}.pem"
-    # Bastion 서버 내부의 pem 권한 설정
-    # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
-    command       = <<EOT
+#     # ssh -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip} "chmod 400 ~/.ssh/${var.key_name}.pem"
+#     # Bastion 서버 내부의 pem 권한 설정
+#     # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
+#     command       = <<EOT
   
-      ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
-      ansible-galaxy collection install prometheus.prometheus
-      ansible-galaxy collection install grafana.grafana
-      ansible-playbook -f 1 site.yml
-    EOT
-  }
-}
+#       ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
+#       ansible-galaxy collection install prometheus.prometheus
+#       ansible-galaxy collection install grafana.grafana
+#       ansible-playbook -f 1 site.yml
+#     EOT
+#   }
+# }...
