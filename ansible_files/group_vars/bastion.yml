@@ -7,7 +7,7 @@
 prometheus_targets:
   node:
     - targets:
-        - 172.16.20.50:9100      # bastion private ip (예시)
+        - 172.16.10.50:9100      # bastion private ip (예시)
         - 172.16.20.10:9100      # nginx-fe-server
         - 172.16.20.20:9100      # fastapi-be-server
         - 172.16.20.30:9100      # postgre-db-server
