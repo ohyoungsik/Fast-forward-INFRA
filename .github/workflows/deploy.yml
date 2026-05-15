@@ -107,8 +107,8 @@ jobs:
         with:
           name: ansible-files
           path: |
-              ${{ github.workspace }}/ansible_files/inventory.yml
-              ${{ github.workspace }}/ansible_files/ansible.cfg
+            ${{ github.workspace }}/ansible_files/inventory.yml
+            ${{ github.workspace }}/ansible_files/ansible.cfg
           # path: |
           #   ansible_files/inventory.yml
           #   ansible_files/ansible.cfg
