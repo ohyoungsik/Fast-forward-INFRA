@@ -100,18 +100,27 @@ jobs:
       # inventory.yml, ansible.cfg를 ../ansible_files/에 자동 생성
       - name: Terraform apply
         run: terraform apply tfplan
- 
+      
+      # apply 후 생성된 파일을 S3에 업로드
+      - name: Upload ansible config to S3
+        run: |
+          aws s3 cp ansible/ansible.cfg s3://my-project-ansible-config/ansible.cfg
+          aws s3 cp ansible/inventory.yml s3://my-project-ansible-config/inventory.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-northeast-2
       # ansible job은 별도 runner에서 실행되므로 파일을 artifact로 전달
       # artifact: GitHub Actions에서 job 간에 파일을 주고받기 위한 임시 파일 저장소
-      - name: Upload ansible files artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ansible-files
-          # path: ansible_files/
-          path: |
-            ansible_files/inventory.yml
-            ansible_files/ansible.cfg
-          retention-days: 1
+      # - name: Upload ansible files artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ansible-files
+      #     # path: ansible_files/
+      #     path: |
+      #       ansible_files/inventory.yml
+      #       ansible_files/ansible.cfg
+      #     retention-days: 1
  
   # terraform 또는 ansible 파일이 변경된 경우 실행
   # terraform이 바뀌면 인프라가 새로 뜨므로 ansible도 항상 같이 실행
@@ -128,14 +137,24 @@ jobs:
  
     steps:
       - uses: actions/checkout@v4
+
+      # S3에서 최신 파일 다운로드
+      - name: Download ansible config from S3
+        run: |
+          aws s3 cp s3://my-project-ansible-config/ansible.cfg ansible/ansible.cfg
+          aws s3 cp s3://my-project-ansible-config/inventory.yml ansible/inventory.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-northeast-2
  
       # terraform job에서 생성된 inventory.yml, ansible.cfg 수신
-      - name: Download ansible files artifact
-        if: needs.changed-files.outputs.terraform == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: ansible-files
-          path: ansible_files/
+      # - name: Download ansible files artifact
+      #   if: needs.changed-files.outputs.terraform == 'true'
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: ansible-files
+      #     path: ansible_files/
  
       # GitHub Secrets의 SSH_PRIVATE_KEY로 키 파일 생성
       # bastion 및 ProxyCommand 경유 서버 접속에 사용

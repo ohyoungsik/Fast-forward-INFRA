@@ -185,6 +185,10 @@ resource "aws_instance" "private_servers" {
 # =========================
 
 # main.tf - local_file 리소스 수정
+# terraform_files에 ansible.cfg와 inventory.yml 저장
+# 두 파일들은 terraform apply 시에 s3 bucket에 업로드 된 후, 
+# ansible-configure 시에 /ansible_files로 다운로드
+
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/inventory.yml.tpl", {
     bastion_public_ip  = aws_instance.bastion_server.public_ip
@@ -193,7 +197,7 @@ resource "local_file" "ansible_inventory" {
     fastapi_private_ips = [aws_instance.private_servers["fastapi-be-server"].private_ip]
     postgre_private_ips = [aws_instance.private_servers["postgre-db-server"].private_ip]
   })
-  filename = "../ansible_files/inventory.yml"
+  filename = "${path.module}/inventory.yml"
 }
 # resource "local_file" "ansible_inventory" {
 #   content = templatefile("${path.module}/inventory.yml.tpl", {
@@ -210,11 +214,26 @@ resource "local_file" "ansible_inventory" {
 # main.tf 또는 별도 ansible.tf에 추가
 
 resource "local_file" "ansible_cfg" {
-  filename = "${path.module}/../ansible_files/ansible.cfg"
+  filename = "${path.module}/ansible.cfg"
   content  = templatefile("${path.module}/ansible.cfg.tpl", {
     bastion_ip = aws_instance.bastion_server.public_ip
     gen_path = path.module
   })
+}
+
+# terraform/s3.tf
+resource "aws_s3_bucket" "ansible_config" {
+  bucket = "fastforward-tfstate"
+}
+
+# 퍼블릭 접근 차단
+resource "aws_s3_bucket_public_access_block" "ansible_config" {
+  bucket = aws_s3_bucket.ansible_config.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 # Terraform에서 ansible_files/group_vars/all.yml 생성
