@@ -65,7 +65,6 @@
     # - postgresql-contrib
     # - python3-psycopg2
     #
-    # testtest
     # 추가 설정:
     # - DB 생성
     # - USER 생성
