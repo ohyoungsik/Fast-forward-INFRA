@@ -106,7 +106,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ansible-files
-          path: ansible_files/
+          path: |
+              ${{ github.workspace }}/ansible_files/inventory.yml
+              ${{ github.workspace }}/ansible_files/ansible.cfg
           # path: |
           #   ansible_files/inventory.yml
           #   ansible_files/ansible.cfg
