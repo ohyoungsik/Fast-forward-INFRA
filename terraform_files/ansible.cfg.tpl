@@ -1,7 +1,7 @@
 # terraform_files/ansible_cfg.tpl
 
 [defaults]
-inventory         = inventory.yml
+inventory         = ../terraform_files/inventory.yml
 remote_user       = ubuntu
 host_key_checking = False
 private_key_file  = ~/.ssh/id_ed25519

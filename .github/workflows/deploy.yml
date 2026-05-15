@@ -22,6 +22,7 @@ jobs:
     outputs:
       terraform: ${{ steps.filter.outputs.terraform }}
       ansible: ${{ steps.filter.outputs.ansible }}
+      workflows: ${{ steps.filter.outputs.workflows }}
  
     steps:
       - uses: actions/checkout@v4
@@ -119,6 +120,7 @@ jobs:
   ansible-configure:
     name: Ansible configure
     needs: [changed-files, terraform-apply]
+    # always() && !failure() : changed-files, terraform-apply가 skip된 건 괜찮고, 실패한 건 막자
     if: |
       always() &&
       !failure() &&
@@ -153,7 +155,7 @@ jobs:
  
       - name: Install ansible
         run: pip install ansible --break-system-packages
- 
+
       # requirements.yml에 정의된 role 설치
       - name: Install ansible requirements
         working-directory: ansible_files
@@ -161,14 +163,29 @@ jobs:
           ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
           ansible-galaxy collection install prometheus.prometheus
           ansible-galaxy collection install grafana.grafana
+
+      - name: Terraform Init
+        working-directory: terraform_files
+        run: terraform init
+
+      - name: Generate inventory
+        working-directory: terraform_files
+        run: |
+          terraform output -raw inventory_yml > inventory.yml
+          terraform output -raw ansible_cfg > ansible.cfg
+
+      - name: Run Ansible
+        working-directory: ansible_files
+        run: |
+          ansible-playbook -i ../terraform_files/inventory.yml site.yml
  
       # terraform이 생성한 inventory.yml로 대상 서버 지정
       # ansible.cfg의 ProxyCommand로 bastion 경유 접속
-      - name: Run playbook
-        working-directory: ansible_files
-        run: |
-          ansible-playbook -i inventory.yml site.yml \
-            --private-key ~/.ssh/id_ed25519
+      # - name: Run playbook
+      #   working-directory: ansible_files
+      #   run: |
+      #     ansible-playbook -i inventory.yml site.yml \
+      #       --private-key ~/.ssh/id_ed25519
 
 # name: Deploy
 
