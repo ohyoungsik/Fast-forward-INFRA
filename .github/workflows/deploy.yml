@@ -106,9 +106,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ansible-files
-          path: |
-            ansible_files/inventory.yml
-            ansible_files/ansible.cfg
+          path: ansible_files/
+          # path: |
+          #   ansible_files/inventory.yml
+          #   ansible_files/ansible.cfg
           retention-days: 1
  
   # terraform 또는 ansible 파일이 변경된 경우 실행
@@ -132,6 +133,12 @@ jobs:
         with:
           name: ansible-files
           path: ansible_files/
+
+      - name: Check downloaded files
+        run: |
+          pwd
+          ls -al
+          ls -al ansible_files
  
       # GitHub Secrets의 SSH_PRIVATE_KEY로 키 파일 생성
       # bastion 및 ProxyCommand 경유 서버 접속에 사용
