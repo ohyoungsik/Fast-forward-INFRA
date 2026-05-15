@@ -3,12 +3,13 @@
 # 결과를 PR 코멘트로 자동 등록 (접기/펼치기 포함)
 # tfplan 바이너리를 artifact로 7일 보관
 # plan 실패 시 PR 머지 블로킹
+# test test
 
 name: Terraform plan
 
 on:
   pull_request:
-    branches: [feat/github_action]
+    branches: [main]
     paths:
       - "terraform_files/**"
       - ".github/workflows/**"
