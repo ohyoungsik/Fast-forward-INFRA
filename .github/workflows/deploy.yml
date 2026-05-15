@@ -129,17 +129,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
  
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_wrapper: false  # output 명령어 파싱 오류 방지
- 
-      # GitHub Secrets에 등록된 팀장님 AWS 키로 인증
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-2
- 
       # terraform job에서 생성된 inventory.yml, ansible.cfg 수신
       - name: Download ansible files artifact
         if: needs.changed-files.outputs.terraform == 'true'
@@ -167,16 +156,6 @@ jobs:
           ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
           ansible-galaxy collection install prometheus.prometheus
           ansible-galaxy collection install grafana.grafana
-
-      - name: Terraform Init
-        working-directory: terraform_files
-        run: terraform init
-
-      - name: Generate inventory
-        working-directory: terraform_files
-        run: |
-          terraform output -raw inventory_yml > inventory.yml
-          terraform output -raw ansible_cfg > ansible.cfg
 
       - name: Run Ansible
         working-directory: ansible_files
