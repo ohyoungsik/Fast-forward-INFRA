@@ -331,4 +331,6 @@ resource "terraform_data" "wait_for_instance" {
 #     EOT
 #   }
 # }
-# 테스트용 주석 추가
+
+
+# 멱등성 테스트를 위해 Terraform 코드만 수정
