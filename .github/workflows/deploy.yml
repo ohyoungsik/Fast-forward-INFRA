@@ -103,7 +103,7 @@ jobs:
         # inventory.yml, ansible.cfg를 실제 생성 확인
       - name: Check generated files
         run: |
-          ls -la terraform_files/
+          ls -la ./
       
       # apply 후 생성된 파일을 S3에 업로드
       # aws s3 cp terraform_files/ansible.cfg s3://fastforward-tfstate/ansible.cfg

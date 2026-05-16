@@ -331,3 +331,4 @@ resource "terraform_data" "wait_for_instance" {
 #     EOT
 #   }
 # }
+# 테스트용 주석 추가
