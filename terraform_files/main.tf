@@ -139,7 +139,7 @@ resource "aws_instance" "bastion_server" {
   associate_public_ip_address = true
   private_ip                  = "172.16.10.50" # 172.16.10.10 은 사용중.... 
   root_block_device {
-    volume_size = 20  
+    volume_size = 20
     volume_type = "gp3"
   }
 
@@ -165,7 +165,7 @@ resource "aws_instance" "private_servers" {
   associate_public_ip_address = false
 
   root_block_device {
-    volume_size = 15  
+    volume_size = 15
     volume_type = "gp3"
   }
 
@@ -191,9 +191,9 @@ resource "aws_instance" "private_servers" {
 
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/inventory.yml.tpl", {
-    bastion_public_ip  = aws_instance.bastion_server.public_ip
+    bastion_public_ip = aws_instance.bastion_server.public_ip
     # 3-tier 서버의 확장성을 고려하여 ip 주소를 리스트로 선언
-    nginx_private_ips  = [aws_instance.private_servers["nginx-fe-server"].private_ip]
+    nginx_private_ips   = [aws_instance.private_servers["nginx-fe-server"].private_ip]
     fastapi_private_ips = [aws_instance.private_servers["fastapi-be-server"].private_ip]
     postgre_private_ips = [aws_instance.private_servers["postgre-db-server"].private_ip]
   })
@@ -215,26 +215,26 @@ resource "local_file" "ansible_inventory" {
 
 resource "local_file" "ansible_cfg" {
   filename = "${path.module}/ansible.cfg"
-  content  = templatefile("${path.module}/ansible.cfg.tpl", {
+  content = templatefile("${path.module}/ansible.cfg.tpl", {
     bastion_ip = aws_instance.bastion_server.public_ip
-    gen_path = path.module
+    gen_path   = path.module
   })
 }
 
-# terraform/s3.tf
-resource "aws_s3_bucket" "ansible_config" {
-  bucket = "fastforward-tfstate"
-}
+# # terraform/s3.tf
+# resource "aws_s3_bucket" "ansible_config" {
+#   bucket = "fastforward-tfstate"
+# }
 
-# 퍼블릭 접근 차단
-resource "aws_s3_bucket_public_access_block" "ansible_config" {
-  bucket = aws_s3_bucket.ansible_config.id
+# # 퍼블릭 접근 차단
+# resource "aws_s3_bucket_public_access_block" "ansible_config" {
+#   bucket = aws_s3_bucket.ansible_config.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
+#   block_public_acls       = true
+#   block_public_policy     = true
+#   ignore_public_acls      = true
+#   restrict_public_buckets = true
+# }
 
 # Terraform에서 ansible_files/group_vars/all.yml 생성
 
@@ -294,9 +294,9 @@ resource "terraform_data" "wait_for_instance" {
   # }
 
   # linux
-     provisioner "local-exec" {
-     command = "sleep 60"
-   }
+  provisioner "local-exec" {
+    command = "sleep 60"
+  }
 }
 
 
@@ -338,7 +338,7 @@ resource "terraform_data" "wait_for_instance" {
 #     # Bastion 서버 내부의 pem 권한 설정
 #     # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
 #     command       = <<EOT
-  
+
 #       ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
 #       ansible-galaxy collection install prometheus.prometheus
 #       ansible-galaxy collection install grafana.grafana
