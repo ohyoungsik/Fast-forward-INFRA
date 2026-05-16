@@ -330,5 +330,4 @@ resource "terraform_data" "wait_for_instance" {
 #       ansible-playbook -f 1 site.yml
 #     EOT
 #   }
-# }...
-# 테스트하려고 주석 추가함 ㅎ
+# }
