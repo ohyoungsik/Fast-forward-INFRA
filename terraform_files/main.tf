@@ -221,21 +221,6 @@ resource "local_file" "ansible_cfg" {
   })
 }
 
-# # terraform/s3.tf
-# resource "aws_s3_bucket" "ansible_config" {
-#   bucket = "fastforward-tfstate"
-# }
-
-# # 퍼블릭 접근 차단
-# resource "aws_s3_bucket_public_access_block" "ansible_config" {
-#   bucket = aws_s3_bucket.ansible_config.id
-
-#   block_public_acls       = true
-#   block_public_policy     = true
-#   ignore_public_acls      = true
-#   restrict_public_buckets = true
-# }
-
 # Terraform에서 ansible_files/group_vars/all.yml 생성
 
 # resource "local_file" "prometheus_vars" {
