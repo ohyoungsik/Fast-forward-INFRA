@@ -161,8 +161,8 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
  
       - name: Install ansible
         run: pip install ansible --break-system-packages
@@ -186,7 +186,7 @@ jobs:
       #   working-directory: ansible_files
       #   run: |
       #     ansible-playbook -i inventory.yml site.yml \
-      #       --private-key ~/.ssh/id_ed25519
+      #       --private-key ~/.ssh/id_rsa
 
 # name: Deploy
 
@@ -299,8 +299,8 @@ jobs:
 #       - name: Setup SSH
 #         run: |
 #           mkdir -p ~/.ssh
-#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-#           chmod 600 ~/.ssh/id_ed25519
+#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+#           chmod 600 ~/.ssh/id_rsa
 
 #       - name: Inject bastion IP into ansible.cfg
 #         run: |
@@ -318,4 +318,4 @@ jobs:
 #         working-directory: ansible_files
 #         run: |
 #           ansible-playbook -i inventory.yml site.yml \
-#             --private-key ~/.ssh/id_ed25519
+#             --private-key ~/.ssh/id_rsa
