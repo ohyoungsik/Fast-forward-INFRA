@@ -1,6 +1,3 @@
-# ''를 테스트 용을 구분하기 위해 적어둔 게 있음.
-# 실제 배포 시엔  지워야 함.
-
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
@@ -142,7 +139,7 @@ resource "aws_instance" "bastion_server" {
   associate_public_ip_address = true
   private_ip                  = "172.16.10.50" # 172.16.10.10 은 사용중.... 
   root_block_device {
-    volume_size = 20  
+    volume_size = 20
     volume_type = "gp3"
   }
 
@@ -168,7 +165,7 @@ resource "aws_instance" "private_servers" {
   associate_public_ip_address = false
 
   root_block_device {
-    volume_size = 15  
+    volume_size = 15
     volume_type = "gp3"
   }
 
@@ -188,15 +185,19 @@ resource "aws_instance" "private_servers" {
 # =========================
 
 # main.tf - local_file 리소스 수정
+# terraform_files에 ansible.cfg와 inventory.yml 저장
+# 두 파일들은 terraform apply 시에 s3 bucket에 업로드 된 후, 
+# ansible-configure 시에 /ansible_files로 다운로드
+
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/inventory.yml.tpl", {
-    bastion_public_ip  = aws_instance.bastion_server.public_ip
+    bastion_public_ip = aws_instance.bastion_server.public_ip
     # 3-tier 서버의 확장성을 고려하여 ip 주소를 리스트로 선언
-    nginx_private_ips  = [aws_instance.private_servers["nginx-fe-server"].private_ip]
+    nginx_private_ips   = [aws_instance.private_servers["nginx-fe-server"].private_ip]
     fastapi_private_ips = [aws_instance.private_servers["fastapi-be-server"].private_ip]
     postgre_private_ips = [aws_instance.private_servers["postgre-db-server"].private_ip]
   })
-  filename = "../ansible_files/inventory.yml"
+  filename = "${path.module}/inventory.yml"
 }
 # resource "local_file" "ansible_inventory" {
 #   content = templatefile("${path.module}/inventory.yml.tpl", {
@@ -213,10 +214,10 @@ resource "local_file" "ansible_inventory" {
 # main.tf 또는 별도 ansible.tf에 추가
 
 resource "local_file" "ansible_cfg" {
-  filename = "${path.module}/../ansible_files/ansible.cfg"
-  content  = templatefile("${path.module}/ansible.cfg.tpl", {
+  filename = "${path.module}/ansible.cfg"
+  content = templatefile("${path.module}/ansible.cfg.tpl", {
     bastion_ip = aws_instance.bastion_server.public_ip
-    gen_path = path.module
+    gen_path   = path.module
   })
 }
 
@@ -278,9 +279,9 @@ resource "terraform_data" "wait_for_instance" {
   # }
 
   # linux
-     provisioner "local-exec" {
-     command = "sleep 60"
-   }
+  provisioner "local-exec" {
+    command = "sleep 60"
+  }
 }
 
 
@@ -322,11 +323,14 @@ resource "terraform_data" "wait_for_instance" {
 #     # Bastion 서버 내부의 pem 권한 설정
 #     # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
 #     command       = <<EOT
-  
+
 #       ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
 #       ansible-galaxy collection install prometheus.prometheus
 #       ansible-galaxy collection install grafana.grafana
 #       ansible-playbook -f 1 site.yml
 #     EOT
 #   }
-# }...
+# }
+
+
+# 멱등성 테스트를 위해 Terraform 코드만 수정

@@ -1,6 +1,3 @@
-# ''를 테스트 용을 구분하기 위해 적어둔 게 있음.
-# 실제 배포 시엔  지워야 함.
-
 variable "aws_region" {
   default = "ap-northeast-2"
 }
@@ -27,8 +24,8 @@ variable "availability_zone" {
 
 variable "key_name" {
   description = "EC2 key pair name"
-  type = string
-  default = "FF-test-key"
+  type        = string
+  default     = "FF-test-key"
 }
 
 variable "instance_type" {
