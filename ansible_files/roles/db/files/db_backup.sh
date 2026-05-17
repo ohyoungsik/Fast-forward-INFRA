@@ -58,19 +58,20 @@ echo "------------------------------------------"
 echo "[$(date)] 백업 작업을 시작합니다."
 echo "✅ 대상 S3 버킷: $BUCKET_NAME"
 
-# 1. DB 추출 (DB_USER, DB_NAME, PGPASSWORD는 크론탭이 주입해줍니다)
+# 1. DB 추출
+# pg_dump가 실패하면 바로 trap 'send_alert' ERR이 작동합니다 (if문 밖이라서)
 pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME -F c -f $BACKUP_PATH
 echo "✅ DB 추출 성공: $BACKUP_PATH"
 
-# 2. S3 업로드 성공 여부 확인 후 로컬 파일 삭제
+# 2. S3 업로드 (if문 안이므로 에러 시 직접 알림 호출)
 if aws s3 cp $BACKUP_PATH s3://$BUCKET_NAME/; then
     echo "✅ S3 업로드 완료!"
-
-    # 3. 로컬 파일 삭제 (업로드 성공한 경우에만)
     rm -f $BACKUP_PATH
     echo "✅ 서버 로컬 임시 파일 삭제 완료!"
 else
     echo "❌ S3 업로드 실패 - 로컬 파일 보존: $BACKUP_PATH"
+    # 여기에 직접 알림 함수를 추가합니다.
+    send_alert
     exit 1
 fi
 

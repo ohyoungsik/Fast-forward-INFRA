@@ -109,6 +109,27 @@
   debug:
     msg: "PostgreSQL role is running on {{ inventory_hostname }}"
 
+- name: install unzip and curl
+  apt:
+    name:
+      - unzip
+      - curl
+    state: present
+    update_cache: yes
+  become: yes
+  # - AWS CLI 설치에 필요한 압축 해제 및 다운로드 도구 준비
+
+- name: install awscli v2
+  shell: |
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+    unzip -o /tmp/awscliv2.zip -d /tmp/
+    /tmp/aws/install --update
+  args:
+    creates: /usr/local/bin/aws
+  become: yes
+  # - 공식 v2 버전을 다운로드하여 설치하며, 이미 설치된 경우(creates) 건너뜀
+
+
 - name: copy s3 environment variables file
   copy:
     src: s3_env.sh
