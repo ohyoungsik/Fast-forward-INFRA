@@ -31,5 +31,5 @@ fluentbit_inputs:
   - /var/log/nginx/access.log
   - /var/log/nginx/error.log
 
-fluentbit_output_host: "10.0.0.10"
-fluentbit_output_port: 9200
+fluentbit_output_host: "172.16.20.20"
+fluentbit_output_port: 8000

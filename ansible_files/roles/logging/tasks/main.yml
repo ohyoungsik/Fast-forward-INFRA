@@ -6,13 +6,17 @@
     state: present
     update_cache: yes
 
-# 현경님 playbook 보며 수정 필요
+# 현경님 playbook 보며 수정 필요 >> 제가 수정 조금 해봤습니다 
 
+
+---
 - name: Fluent Bit 설치를 위한 필수 패키지 설치
   apt:
     name:
+      - curl
       - gnupg
       - ca-certificates
+      - apt-transport-https
     state: present
     update_cache: yes
 
@@ -20,7 +24,7 @@
   file:
     path: /etc/apt/keyrings
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: 기존 Fluent Bit key 삭제
   file:
@@ -31,10 +35,13 @@
   get_url:
     url: "{{ fluentbit_key_url }}"
     dest: /tmp/fluentbit.key
+    mode: "0644"
 
 - name: Fluent Bit key dearmor
   command: >
-    gpg --dearmor --batch --yes -o /etc/apt/keyrings/fluentbit.gpg /tmp/fluentbit.key
+    gpg --dearmor --batch --yes
+    -o /etc/apt/keyrings/fluentbit.gpg
+    /tmp/fluentbit.key
 
 - name: Fluent Bit repository 추가
   apt_repository:
@@ -51,10 +58,19 @@
     name: fluent-bit
     state: present
 
+- name: Fluent Bit 상태 저장 디렉토리 생성
+  file:
+    path: /var/lib/fluent-bit
+    state: directory
+    mode: "0755"
+
 - name: Fluent Bit 설정 배포
   template:
     src: fluent-bit.conf.j2
     dest: "{{ fluentbit_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
   notify: restart fluent-bit
 
 - name: Fluent Bit 서비스 실행 및 활성화

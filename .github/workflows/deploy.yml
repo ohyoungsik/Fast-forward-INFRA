@@ -16,12 +16,22 @@ on:
  
 jobs:
   # 어떤 파일이 바뀌었는지 감지 → 이후 job 실행 여부 결정
+  # .steps — 같은 job 안의 이전 step 결과 참조
   changed-files:
     name: Detect changed files
     runs-on: ubuntu-latest
     outputs:
       terraform: ${{ steps.filter.outputs.terraform }}
       ansible: ${{ steps.filter.outputs.ansible }}
+      # role별 변경 감지 output 추가
+      role_common: ${{ steps.filter.outputs.role_common }}
+      role_web: ${{ steps.filter.outputs.role_web }}
+      role_was: ${{ steps.filter.outputs.role_was }}
+      role_db: ${{ steps.filter.outputs.role_db }}
+      role_bastion: ${{ steps.filter.outputs.role_bastion }}
+      role_monitoring: ${{ steps.filter.outputs.role_monitoring }}
+      role_logging: ${{ steps.filter.outputs.role_logging }}
+      role_group_vars: ${{ steps.filter.outputs.role_group_vars }}
  
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +45,29 @@ jobs:
               - 'terraform_files/**'
             ansible:
               - 'ansible_files/**'
+            role_common:
+              - 'ansible_files/roles/common/**'
+              - 'ansible_files/group_vars/all.yml'
+            role_web:
+              - 'ansible_files/roles/web/**'
+              - 'ansible_files/group_vars/web.yml'
+            role_was:
+              - 'ansible_files/roles/was/**'
+              - 'ansible_files/group_vars/was.yml'
+            role_db:
+              - 'ansible_files/roles/db/**'
+              - 'ansible_files/group_vars/db.yml'
+            role_bastion:
+              - 'ansible_files/roles/bastion/**'
+              - 'ansible_files/group_vars/bastion.yml'
+            role_monitoring:
+              - 'ansible_files/roles/monitoring/**'
+            role_logging:
+              - 'ansible_files/roles/logging/**'
+            role_group_vars:
+              - 'ansible_files/group_vars/**'
+              - 'ansible_files/site.yml'
+              - 'ansible_files/requirements.yml'
  
   # terraform_files가 변경된 경우에만 실행
   terraform-apply:
@@ -182,10 +215,54 @@ jobs:
           ansible-galaxy collection install prometheus.prometheus
           ansible-galaxy collection install grafana.grafana
 
-      - name: Run Ansible
-        working-directory: ansible_files
+      # 수정된 roles를 식별하기 위한 환경 변수 생성
+      # 전체 실행해야 하는지 먼저 체크 후
+      # 전체 실행이 아니면 변경된 role만 태그 누적
+      # .needs — 다른 job의 결과 참조
+      - name: Build ansible tags
+        id: tags
         run: |
-          ansible-playbook -i ./inventory.yml site.yml
+          needs='${{ toJSON(needs.changed-files.outputs) }}'
+
+          # terraform 변경 또는 site.yml/requirements.yml/group_vars 전체 변경이면 전체 실행
+          if [ "${{ needs.changed-files.outputs.terraform }}" == "true" ] || \
+             [ "${{ needs.changed-files.outputs.role_group_vars }}" == "true" ]; then
+            echo "RUN_ALL=true" >> $GITHUB_OUTPUT
+            echo "→ 전체 실행 (terraform 변경 또는 공통 설정 변경)"
+          else
+            TAGS=""
+            [ "${{ needs.changed-files.outputs.role_common }}"     == "true" ] && TAGS="$TAGS,common"
+            [ "${{ needs.changed-files.outputs.role_web }}"        == "true" ] && TAGS="$TAGS,web"
+            [ "${{ needs.changed-files.outputs.role_was }}"        == "true" ] && TAGS="$TAGS,was"
+            [ "${{ needs.changed-files.outputs.role_db }}"         == "true" ] && TAGS="$TAGS,db"
+            [ "${{ needs.changed-files.outputs.role_bastion }}"    == "true" ] && TAGS="$TAGS,bastion"
+            [ "${{ needs.changed-files.outputs.role_monitoring }}" == "true" ] && TAGS="$TAGS,monitoring"
+            [ "${{ needs.changed-files.outputs.role_logging }}"    == "true" ] && TAGS="$TAGS,logging"
+            TAGS="${TAGS#,}"  # 앞의 쉼표 제거
+            echo "TAGS=$TAGS" >> $GITHUB_OUTPUT
+            echo "→ 부분 실행 tags: $TAGS"
+          fi
+
+        # terraform 변경, role_group_vars 변경
+      - name: Run Ansible (전체)
+        if: steps.tags.outputs.RUN_ALL == 'true'
+        working-directory: ansible_files
+        run: ansible-playbook -i ./inventory.yml site.yml
+        
+        # Ansible은 --tags에 OR 조건으로 매칭되는 모든 role을 실행
+      - name: Run Ansible (부분)
+        if: steps.tags.outputs.RUN_ALL != 'true' && steps.tags.outputs.TAGS != ''
+        working-directory: ansible_files
+        run: ansible-playbook -i ./inventory.yml site.yml --tags "${{ steps.tags.outputs.TAGS }}"
+
+      - name: Skip (변경 없음)
+        if: steps.tags.outputs.RUN_ALL != 'true' && steps.tags.outputs.TAGS == ''
+        run: echo "ansible_files 변경 없음, Ansible 실행 스킵"
+
+      # - name: Run Ansible
+      #   working-directory: ansible_files
+      #   run: |
+      #     ansible-playbook -i ./inventory.yml site.yml
  
       # terraform이 생성한 inventory.yml로 대상 서버 지정
       # ansible.cfg의 ProxyCommand로 bastion 경유 접속
