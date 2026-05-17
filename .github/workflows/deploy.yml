@@ -1,6 +1,6 @@
-# deploy.yml — feat/github_action 머지 시 실행
+# deploy.yml — main 머지 시 실행
 
-# feat/github_action 브랜치에 push될 때 실행 (PR 머지 포함)
+# main 브랜치에 push될 때 실행 (PR 머지 포함)
 # terraform 또는 ansible 파일이 변경된 경우에만 실행
 name: deploy
 
