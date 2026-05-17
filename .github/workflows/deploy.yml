@@ -10,7 +10,7 @@ on:
     paths:
       - "terraform_files/**"
       - "ansible_files/**"
-      - ".github/workflows/**"
+      # - ".github/workflows/**"
     # paths-ignore:
     #   - '.github/workflows/destroy.yml'
  
@@ -99,24 +99,41 @@ jobs:
       # inventory.yml, ansible.cfg를 ../ansible_files/에 자동 생성
       - name: Terraform apply
         run: terraform apply tfplan
- 
+      
+        # inventory.yml, ansible.cfg를 실제 생성 확인
+      - name: Check generated files
+        run: |
+          ls -la ./
+      
+      # apply 후 생성된 파일을 S3에 업로드
+      # aws s3 cp terraform_files/ansible.cfg s3://fastforward-tfstate/ansible.cfg
+      # aws s3 cp terraform_files/inventory.yml s3://fastforward-tfstate/inventory.yml
+      - name: Upload ansible config to S3
+        run: |
+          aws s3 cp ansible.cfg s3://fastforward-tfstate/ansible.cfg
+          aws s3 cp inventory.yml s3://fastforward-tfstate/inventory.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-northeast-2
       # ansible job은 별도 runner에서 실행되므로 파일을 artifact로 전달
       # artifact: GitHub Actions에서 job 간에 파일을 주고받기 위한 임시 파일 저장소
-      - name: Upload ansible files artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ansible-files
-          # path: ansible_files/
-          path: |
-            ansible_files/inventory.yml
-            ansible_files/ansible.cfg
-          retention-days: 1
+      # - name: Upload ansible files artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ansible-files
+      #     # path: ansible_files/
+      #     path: |
+      #       ansible_files/inventory.yml
+      #       ansible_files/ansible.cfg
+      #     retention-days: 1
  
   # terraform 또는 ansible 파일이 변경된 경우 실행
   # terraform이 바뀌면 인프라가 새로 뜨므로 ansible도 항상 같이 실행
   ansible-configure:
     name: Ansible configure
     needs: [changed-files, terraform-apply]
+    # always() && !failure() : changed-files, terraform-apply가 skip된 건 괜찮고, 실패한 건 막자
     if: |
       always() &&
       !failure() &&
@@ -126,14 +143,24 @@ jobs:
  
     steps:
       - uses: actions/checkout@v4
+
+      # S3에서 최신 파일 다운로드
+      - name: Download ansible config from S3
+        run: |
+          aws s3 cp s3://fastforward-tfstate/ansible.cfg ansible_files/ansible.cfg
+          aws s3 cp s3://fastforward-tfstate/inventory.yml ansible_files/inventory.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-northeast-2
  
       # terraform job에서 생성된 inventory.yml, ansible.cfg 수신
-      - name: Download ansible files artifact
-        if: needs.changed-files.outputs.terraform == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: ansible-files
-          path: ansible_files/
+      # - name: Download ansible files artifact
+      #   if: needs.changed-files.outputs.terraform == 'true'
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: ansible-files
+      #     path: ansible_files/
  
       # GitHub Secrets의 SSH_PRIVATE_KEY로 키 파일 생성
       # bastion 및 ProxyCommand 경유 서버 접속에 사용
@@ -141,12 +168,12 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
  
       - name: Install ansible
         run: pip install ansible --break-system-packages
- 
+
       # requirements.yml에 정의된 role 설치
       - name: Install ansible requirements
         working-directory: ansible_files
@@ -154,14 +181,19 @@ jobs:
           ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
           ansible-galaxy collection install prometheus.prometheus
           ansible-galaxy collection install grafana.grafana
+
+      - name: Run Ansible
+        working-directory: ansible_files
+        run: |
+          ansible-playbook -i ./inventory.yml site.yml
  
       # terraform이 생성한 inventory.yml로 대상 서버 지정
       # ansible.cfg의 ProxyCommand로 bastion 경유 접속
-      - name: Run playbook
-        working-directory: ansible_files
-        run: |
-          ansible-playbook -i inventory.yml site.yml \
-            --private-key ~/.ssh/id_ed25519
+      # - name: Run playbook
+      #   working-directory: ansible_files
+      #   run: |
+      #     ansible-playbook -i inventory.yml site.yml \
+      #       --private-key ~/.ssh/id_rsa
 
 # name: Deploy
 
@@ -274,8 +306,8 @@ jobs:
 #       - name: Setup SSH
 #         run: |
 #           mkdir -p ~/.ssh
-#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-#           chmod 600 ~/.ssh/id_ed25519
+#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+#           chmod 600 ~/.ssh/id_rsa
 
 #       - name: Inject bastion IP into ansible.cfg
 #         run: |
@@ -293,4 +325,4 @@ jobs:
 #         working-directory: ansible_files
 #         run: |
 #           ansible-playbook -i inventory.yml site.yml \
-#             --private-key ~/.ssh/id_ed25519
+#             --private-key ~/.ssh/id_rsa
