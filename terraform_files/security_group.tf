@@ -122,6 +122,16 @@ resource "aws_security_group_rule" "bastion_to_nginx_http" {
   source_security_group_id = aws_security_group.bastion_sg.id
 }
 
+resource "aws_security_group_rule" "bastion_to_fastapi" {
+  type                     = "ingress"
+  description              = "FastAPI from nginx frontend"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.private_server_sg["fastapi-be-server"].id
+  source_security_group_id = aws_security_group.bastion_sg.id
+}
+
 resource "aws_security_group_rule" "nginx_to_fastapi" {
   type                     = "ingress"
   description              = "FastAPI from nginx frontend"
@@ -131,6 +141,17 @@ resource "aws_security_group_rule" "nginx_to_fastapi" {
   security_group_id        = aws_security_group.private_server_sg["fastapi-be-server"].id
   source_security_group_id = aws_security_group.private_server_sg["nginx-fe-server"].id
 }
+
+resource "aws_security_group_rule" "postgre_to_fastapi" {
+  type                     = "ingress"
+  description              = "FastAPI from nginx frontend"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.private_server_sg["fastapi-be-server"].id
+  source_security_group_id = aws_security_group.private_server_sg["postgre-db-server"].id
+}
+
 
 resource "aws_security_group_rule" "fastapi_to_postgres" {
   type                     = "ingress"
