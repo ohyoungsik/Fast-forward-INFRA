@@ -1,15 +1,4 @@
 ---
-- name: 필수 패키지 설치
-  apt:
-    name:
-      - apt-transport-https
-    state: present
-    update_cache: yes
-
-# 현경님 playbook 보며 수정 필요 >> 제가 수정 조금 해봤습니다 
-
-
----
 - name: Fluent Bit 설치를 위한 필수 패키지 설치
   apt:
     name:
