@@ -95,4 +95,36 @@
 # - name: install alertmanager
 #   include_role:
 #     name: cloudalchemy.alertmanager
-# test
+
+
+- name: Create Grafana alerting provisioning directory
+  file:
+    path: /etc/grafana/provisioning/alerting
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: '0755'
+  become: yes
+  # 설명: 그라파나가 알림 설정 파일을 읽을 수 있도록 '/etc/grafana/provisioning/alerting' 폴더를 미리 생성해 두는 안전장치입니다.
+
+- name: alerting config file copy (연락처 설정)
+  copy:
+    src: alerting.yaml
+    dest: /etc/grafana/provisioning/alerting/alerting.yaml
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  become: yes
+  notify: restart grafana
+  # 설명: 우리가 'roles/bastion/files/' 폴더에 만들어둘 alerting.yaml (텔레그램 봇 토큰과 채팅방 ID 설정) 파일을 서버로 복사합니다. 복사 후 그라파나를 재시작하도록 알림(notify)을 보냅니다.
+
+- name: alert rules config file copy (알림 규칙 설정)
+  copy:
+    src: rules.yaml
+    dest: /etc/grafana/provisioning/alerting/rules.yaml
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  become: yes
+  notify: restart grafana
+  # 설명: 우리가 추출할 rules.yaml (CPU, RAM, 디스크 트래픽 임계치 설정) 파일을 서버로 복사합니다.
