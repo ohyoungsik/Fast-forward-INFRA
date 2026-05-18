@@ -332,5 +332,24 @@ resource "terraform_data" "wait_for_instance" {
 #   }
 # }
 
+# 랜덤 ID 생성 (고유한 버킷 이름을 위해 필요)
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
 
-# 멱등성 테스트를 위해 Terraform 코드만 수정
+# DB 백업 전용 S3 버킷 생성
+resource "aws_s3_bucket" "db_backup_bucket" {
+  bucket = "base-pj-ff-backup-${random_id.bucket_suffix.hex}"
+  tags = {
+    Name        = "Monitoring DB Backup"
+    Environment = "Dev"
+  }
+}
+
+# 앤서블용 환경 변수 파일(s3_env.sh) 생성
+resource "local_file" "s3_env" {
+  content  = "export BUCKET_NAME=\"${aws_s3_bucket.db_backup_bucket.id}\""
+  
+  # 핵심 해결책: 어떤 환경에서도 ansible_files 내의 db 역할 폴더를 찾아가도록 설정
+  filename = "${path.module}/../ansible_files/roles/db/files/s3_env.sh"
+}

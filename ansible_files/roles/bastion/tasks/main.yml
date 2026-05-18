@@ -147,87 +147,36 @@
 # - name: install alertmanager
 #   include_role:
 #     name: cloudalchemy.alertmanager
-# test
 
 
-# name: "Bastion Let's Encrypt + Nginx HTTPS 설정"
-# hosts: bastion
-# become: yes
+- name: Create Grafana alerting provisioning directory
+  file:
+    path: /etc/grafana/provisioning/alerting
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: '0755'
+  become: yes
+  # 설명: 그라파나가 알림 설정 파일을 읽을 수 있도록 '/etc/grafana/provisioning/alerting' 폴더를 미리 생성해 두는 안전장치입니다.
 
-#   tasks:
-    
-# name: "1. 패키지 설치"
-#     apt:
-#       name:
-# certbot
-# python3-certbot-nginx
-# nginx
-# cron
-# state: present
-# update_cache: yes
+- name: alerting config file copy (연락처 설정)
+  copy:
+    src: alerting.yaml
+    dest: /etc/grafana/provisioning/alerting/alerting.yaml
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  become: yes
+  notify: restart grafana
+  # 설명: 우리가 'roles/bastion/files/' 폴더에 만들어둘 alerting.yaml (텔레그램 봇 토큰과 채팅방 ID 설정) 파일을 서버로 복사합니다. 복사 후 그라파나를 재시작하도록 알림(notify)을 보냅니다.
 
-    
-# name: "2. Nginx HTTP 서버 블록 설정"
-#     copy:
-#       dest: /etc/nginx/sites-available/yourdomain.conf
-#       force: no   # certbot이 수정한 파일 보호
-#       content: |
-#         server {
-#             listen 80;
-#             server_name yourdomain.com www.yourdomain.com;
-
-#               location /.well-known/acme-challenge/ {
-#                   root /var/www/html;
-#               }
-
-#               location / {
-#                   proxy_pass http://172.16.20.10/;
-#                   proxy_set_header Host $host;
-#                   proxy_set_header X-Real-IP $remote_addr;
-#                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#                   proxy_set_header X-Forwarded-Proto $scheme;
-#               }
-#           }
-#       notify: Reload nginx
-
-    
-# name: "3. Nginx 사이트 활성화"
-#     file:
-#       src: /etc/nginx/sites-available/yourdomain.conf
-#       dest: /etc/nginx/sites-enabled/yourdomain.conf
-#       state: link
-#     notify: Reload nginx
-
-    
-# name: "3-1. certbot 실행 전 Nginx 즉시 reload"
-#     meta: flush_handlers
-
-    
-# name: "4. Let's Encrypt 인증서 발급"
-#     command: >
-#       certbot --nginx --non-interactive --agree-tos-m your@email.com-d yourdomain.com -d www.yourdomain.com
-#     args:
-#       creates: /etc/letsencrypt/live/yourdomain.com/fullchain.pem
-
-    
-# name: "5. cron 시작 및 자동 실행"
-#     systemd:
-#       name: cron
-#       state: started
-#       enabled: yes
-
-    
-# name: "6. 자동 갱신 크론 등록"
-#     cron:
-#       name: "Certbot Auto Renew"
-#       minute: "30"
-#       hour: "3"
-#       user: root
-#       job: "/usr/bin/certbot renew --quiet && systemctl reload nginx"
-
-#   handlers:
-    
-# name: Reload nginx
-#     systemd:
-#       name: nginx
-#       state: reloaded
+- name: alert rules config file copy (알림 규칙 설정)
+  copy:
+    src: rules.yaml
+    dest: /etc/grafana/provisioning/alerting/rules.yaml
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  become: yes
+  notify: restart grafana
+  # 설명: 우리가 추출할 rules.yaml (CPU, RAM, 디스크 트래픽 임계치 설정) 파일을 서버로 복사합니다.

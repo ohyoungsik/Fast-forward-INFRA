@@ -3,3 +3,9 @@
   service:
     name: nginx
     state: restarted
+
+- name: restart grafana
+  systemd:
+    name: grafana-server
+    state: restarted
+  become: yes
