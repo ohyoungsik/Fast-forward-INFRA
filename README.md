@@ -198,8 +198,19 @@ deploy.yml은 변경된 파일을 감지하여 수정된 Role만 선택적으로
     │
     └── 특정 role만 변경
           └── 부분 실행: ansible-playbook site.yml --tags "web,was"
+
 각 role은 site.yml에 태그로 정의되어 있으며, 변경된 role에 해당하는 태그만 추려서 실행합니다.
-변경 경로실행 태그roles/common/**, group_vars/all.ymlcommonroles/web/**, group_vars/web.ymlwebroles/was/**, group_vars/was.ymlwasroles/db/**, group_vars/db.ymldbroles/bastion/**, group_vars/bastion.ymlbastionroles/monitoring/**monitoringroles/logging/**loggingterraform 변경 or 공통 설정 변경전체 실행
+
+| 변경 경로 | 실행 태그 |
+|---|---|
+| `roles/common/**`, `group_vars/all.yml` | `common` |
+| `roles/web/**`, `group_vars/web.yml` | `web` |
+| `roles/was/**`, `group_vars/was.yml` | `was` |
+| `roles/db/**`, `group_vars/db.yml` | `db` |
+| `roles/bastion/**`, `group_vars/bastion.yml` | `bastion` |
+| `roles/monitoring/**` | `monitoring` |
+| `roles/logging/**` | `logging` |
+| terraform 변경 or 공통 설정 변경 | 전체 실행 |
 
 ---
 
