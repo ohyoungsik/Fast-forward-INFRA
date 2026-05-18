@@ -1,5 +1,5 @@
 ---
-# Nginx 설치 및 Reverse Proxy 설정
+# Nginx 설치 및 Reverse Proxy 설정#
 - name: install nginx via galaxy
   include_role:
     name: geerlingguy.nginx
@@ -7,11 +7,11 @@
 - name: "1. 패키지 설치"
   apt:
     name:
-      certbot
-      python3-certbot-nginx
-      cron
-  state: present
-  update_cache: yes
+      - certbot
+      - python3-certbot-nginx
+      - cron
+    state: present
+    update_cache: yes
 
 - name: "web root directory 생성"
   file:
