@@ -1,5 +1,10 @@
 # Fast-forward-INFRA/ansible_files/group_vars/bastion.yml
 
+certbot_email: "z94648569@gmail.com"
+domain_name: "ff-infrawatch.site"
+certbot_renew_minute: "30"
+certbot_renew_hour: "3"
+
 # 기존엔 인스턴스 생성 시 bastion 서버에 할당되는 public IP를 활용하려
 # main.tf에서 bastion.yml을 생성하였으나,
 # 모든 노드에 대해 Private IP를 사용하기로 하여 bastion.yml은 로컬 파일로 저장

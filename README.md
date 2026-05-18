@@ -75,7 +75,7 @@ Node Exporter(:9100) ← Prometheus(Bastion) → Grafana(Bastion:3000)
 
 **로그 흐름:**
 ```
-각 서버 로그 → Fluent-bit → Elasticsearch(10.0.0.10:9200)
+각 서버 로그 → Fluent-bit → FastAPI Log API → PostgreSQL → React Dashboard
 ```
 
 ---

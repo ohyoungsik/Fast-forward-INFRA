@@ -4,7 +4,16 @@
   include_role:
     name: geerlingguy.nginx
 
-- name: create web root directory
+- name: "1. 패키지 설치"
+  apt:
+    name:
+      certbot
+      python3-certbot-nginx
+      cron
+  state: present
+  update_cache: yes
+
+- name: "web root directory 생성"
   file:
     path: /var/www/html
     state: directory
@@ -12,7 +21,7 @@
     group: www-data
     mode: '0755'
 
-- name: deploy bastion index.html
+- name: "bastion index.html 배포"
   template:
     src: index.html.j2
     dest: /var/www/html/index.html
@@ -20,14 +29,57 @@
     group: www-data
     mode: '0644'
 
-- name: deploy bastion nginx reverse proxy config
+- name: "bastion nginx reverse proxy config 배포"
   template:
     src: bastion-proxy.conf.j2
     dest: /etc/nginx/sites-available/default
   notify: restart nginx
 
+  # ── 2단계: HTTPS 설정 (신규 추가) ────────────────────────────────
+- name: "1. 패키지 설치"
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+      - cron
+    state: present
+    update_cache: yes
+
+- name: "2. Nginx 사이트 활성화 확인"
+  file:
+    src: /etc/nginx/sites-available/default
+    dest: /etc/nginx/sites-enabled/default
+    state: link
+  notify: Reload nginx
+
+- name: "3. certbot 실행 전 Nginx 즉시 reload"
+  meta: flush_handlers
+
+- name: "4. Let's Encrypt 인증서 발급"
+  command: >
+    certbot --nginx --non-interactive --agree-tos
+    -m {{ certbot_email }}
+    -d {{ domain_name }}
+    -d www.{{ domain_name }}
+  args:
+    creates: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+
+- name: "5. cron 시작 및 자동 실행"
+  systemd:
+    name: cron
+    state: started
+    enabled: yes
+
+- name: "6. 자동 갱신 크론 등록"
+  cron:
+    name: "Certbot Auto Renew"
+    minute: "{{ certbot_renew_minute }}"
+    hour: "{{ certbot_renew_hour }}"
+    user: root
+    job: "/usr/bin/certbot renew --quiet && systemctl reload nginx"
+
 # Prometheus 설치 (collection)
-- name: install prometheus
+- name: "prometheus 설치"
   include_role:
     name: prometheus.prometheus.prometheus
   vars:
@@ -96,3 +148,86 @@
 #   include_role:
 #     name: cloudalchemy.alertmanager
 # test
+
+
+# name: "Bastion Let's Encrypt + Nginx HTTPS 설정"
+# hosts: bastion
+# become: yes
+
+#   tasks:
+    
+# name: "1. 패키지 설치"
+#     apt:
+#       name:
+# certbot
+# python3-certbot-nginx
+# nginx
+# cron
+# state: present
+# update_cache: yes
+
+    
+# name: "2. Nginx HTTP 서버 블록 설정"
+#     copy:
+#       dest: /etc/nginx/sites-available/yourdomain.conf
+#       force: no   # certbot이 수정한 파일 보호
+#       content: |
+#         server {
+#             listen 80;
+#             server_name yourdomain.com www.yourdomain.com;
+
+#               location /.well-known/acme-challenge/ {
+#                   root /var/www/html;
+#               }
+
+#               location / {
+#                   proxy_pass http://172.16.20.10/;
+#                   proxy_set_header Host $host;
+#                   proxy_set_header X-Real-IP $remote_addr;
+#                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#                   proxy_set_header X-Forwarded-Proto $scheme;
+#               }
+#           }
+#       notify: Reload nginx
+
+    
+# name: "3. Nginx 사이트 활성화"
+#     file:
+#       src: /etc/nginx/sites-available/yourdomain.conf
+#       dest: /etc/nginx/sites-enabled/yourdomain.conf
+#       state: link
+#     notify: Reload nginx
+
+    
+# name: "3-1. certbot 실행 전 Nginx 즉시 reload"
+#     meta: flush_handlers
+
+    
+# name: "4. Let's Encrypt 인증서 발급"
+#     command: >
+#       certbot --nginx --non-interactive --agree-tos-m your@email.com-d yourdomain.com -d www.yourdomain.com
+#     args:
+#       creates: /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+
+    
+# name: "5. cron 시작 및 자동 실행"
+#     systemd:
+#       name: cron
+#       state: started
+#       enabled: yes
+
+    
+# name: "6. 자동 갱신 크론 등록"
+#     cron:
+#       name: "Certbot Auto Renew"
+#       minute: "30"
+#       hour: "3"
+#       user: root
+#       job: "/usr/bin/certbot renew --quiet && systemctl reload nginx"
+
+#   handlers:
+    
+# name: Reload nginx
+#     systemd:
+#       name: nginx
+#       state: reloaded
