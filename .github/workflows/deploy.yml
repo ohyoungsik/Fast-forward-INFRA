@@ -2,6 +2,12 @@
 
 # feat/github_action 브랜치에 push될 때 실행 (PR 머지 포함)
 # terraform 또는 ansible 파일이 변경된 경우에만 실행
+
+# 인프라가 처음 프로비저닝 되었을 경우 BE -> FE 순서로 deploy 진행. 
+# 이 때 새로 생긴 bastion 서버 퍼블릭 IP와 SSH private 키 값을(필요하다면) 넘겨주기
+# 인프라가 프로비저닝 된 상태에서 bastion, web 서버만 ansible을 다시 돌렸을 때, 
+# var/www/html에서 기존 리액트 빌드 결과물이 있으면 그거 deploy, 아니면 기본 index.html deploy.
+
 name: deploy
 
 on:
@@ -99,8 +105,8 @@ jobs:
         run: terraform init
 
       # 임시. 삭제할 것
-      - name: Terraform refresh      # 추가
-        run: terraform refresh
+      # - name: Terraform refresh      # 추가
+      #   run: terraform refresh
  
       # plan.yml에서 저장한 tfplan artifact를 가져오기 위해 PR 번호 필요
       - name: Get PR number
@@ -258,6 +264,77 @@ jobs:
       - name: Skip (변경 없음)
         if: steps.tags.outputs.RUN_ALL != 'true' && steps.tags.outputs.TAGS == ''
         run: echo "ansible_files 변경 없음, Ansible 실행 스킵"
+        
+# Terraform이 새로 프로비저닝됐을 때만 BE -> FE 순서로 배포 트리거
+  trigger-app-deployments:
+    name: Trigger BE and FE deployments
+    needs: [changed-files, ansible-configure]
+    # Terraform이 실행됐을 때(새 프로비저닝)만 실행
+    if: |
+      always() &&
+      !failure() &&
+      needs.changed-files.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - uses: actions/checkout@v4
+ 
+      - name: Download inventory from S3
+        run: |
+          aws s3 cp s3://fastforward-tfstate/inventory.yml ./inventory.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-northeast-2
+ 
+      # inventory.yml에서 Bastion Public IP 파싱
+      # ansible_host: "1.2.3.4" 형태에서 bastion 섹션의 첫번째 IP를 가져옴
+      - name: Get Bastion IP from inventory
+        id: get_bastion_ip
+        run: |
+          BASTION_IP=$(grep -A3 'bastion:' inventory.yml | grep 'ansible_host' | head -1 | awk '{print $2}' | tr -d '"')
+          echo "bastion_ip=$BASTION_IP" >> $GITHUB_OUTPUT
+          echo "→ Bastion IP: $BASTION_IP"
+ 
+      # BE 먼저 배포 (DB 연결 등 백엔드가 먼저 떠야 FE가 정상 동작)
+      - name: Trigger BE deployment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: 'fast-forward-BE',
+              workflow_id: 'deploy.yml',
+              ref: 'main',
+              inputs: {
+                bastion_host: '${{ steps.get_bastion_ip.outputs.bastion_ip }}'
+              }
+            })
+            console.log('BE deployment triggered with Bastion IP: ${{ steps.get_bastion_ip.outputs.bastion_ip }}')
+ 
+      # BE 배포가 어느 정도 진행된 후 FE 배포 트리거 (60초 대기)
+      - name: Wait for BE deployment to start
+        run: |
+          echo "BE 배포 시작 대기 중... (60초)"
+          sleep 60
+ 
+      # FE 배포
+      - name: Trigger FE deployment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: 'fast-forward-FE',
+              workflow_id: 'deploy.yml',
+              ref: 'main',
+              inputs: {
+                bastion_host: '${{ steps.get_bastion_ip.outputs.bastion_ip }}'
+              }
+            })
+            console.log('FE deployment triggered with Bastion IP: ${{ steps.get_bastion_ip.outputs.bastion_ip }}')
 
       # - name: Run Ansible
       #   working-directory: ansible_files
