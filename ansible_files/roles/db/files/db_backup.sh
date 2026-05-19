@@ -29,7 +29,7 @@ send_alert() {
     
     local MESSAGE="🚨 [긴급] DB 백업 실패!
 
-- 발생 시간: $(date +'%Y-%m-%d %H:%M:%S')
+- 발생 시간: $(TZ='Asia/Seoul' date +'%Y-%m-%d %H:%M:%S')
 - 대상 서버: $DB_HOST ($DB_NAME)
 - 사용 버킷: $BUCKET_NAME
 - 상세 에러 내용:
