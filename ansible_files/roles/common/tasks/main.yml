@@ -2,11 +2,20 @@
 - name: apt update
   apt:
     update_cache: yes
+    cache_valid_time: 3600
 
 - name: install common packages
   apt:
     name: "{{ common_packages }}"
     state: present
+    
+# 서버 시간 변경
+- name: Set timezone to Asia/Seoul
+  timezone:
+    name: Asia/Seoul
+  tags:
+    - timezone
+    - common
 
 # - name: create user
 #   user:
