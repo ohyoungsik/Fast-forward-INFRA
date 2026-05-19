@@ -118,19 +118,6 @@
     repo: "deb [signed-by=/usr/share/keyrings/grafana.gpg] https://apt.grafana.com stable main"
     state: present
 
-# - name: "Grafana GPG 키 등록 (Debian 계열)"
-#   when: ansible_facts['os_family'] == "Debian"
-#   ansible.builtin.apt_key:
-#     url: https://packages.grafana.com/gpg.key
-#     state: present
-
-# - name: "Grafana APT 저장소 추가 (Debian 계열)"
-#   when: ansible_facts['os_family'] == "Debian"
-#   ansible.builtin.apt_repository:
-#     repo: "deb https://packages.grafana.com/oss/deb stable main"
-#     state: present
-#     filename: grafana
-
 - name: "Grafana 설치 (Debian 계열)"
   when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt:
@@ -144,11 +131,7 @@
     state: started
     enabled: yes
 
-# - name: install alertmanager
-#   include_role:
-#     name: cloudalchemy.alertmanager
-
-
+  # 설명: 그라파나가 알림 설정 파일을 읽을 수 있도록 '/etc/grafana/provisioning/alerting' 폴더를 미리 생성해 두는 안전장치입니다.
 - name: Create Grafana alerting provisioning directory
   file:
     path: /etc/grafana/provisioning/alerting
@@ -157,7 +140,6 @@
     group: grafana
     mode: '0755'
   become: yes
-  # 설명: 그라파나가 알림 설정 파일을 읽을 수 있도록 '/etc/grafana/provisioning/alerting' 폴더를 미리 생성해 두는 안전장치입니다.
 
 - name: alerting config file copy (연락처 설정)
   copy:
