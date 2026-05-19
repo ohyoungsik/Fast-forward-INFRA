@@ -1,0 +1,89 @@
+# .github/workflows/stress_test.yml
+
+name: Stress Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      stress_mode:
+        description: '실행 모드'
+        required: true
+        type: choice
+        default: install_only
+        options:
+          - install_only
+          - install_and_run
+      confirm:
+        description: '"stress"를 입력해야 실행됩니다'
+        required: true
+        type: string
+      target_hosts:
+        description: '테스트 대상 (all / web / was / db)'
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - web
+          - was
+          - db
+          - bastion
+      stress_cpu_workers:
+        description: 'CPU 워커 수'
+        required: false
+        default: '2'
+      stress_timeout:
+        description: '테스트 시간 (예: 60s)'
+        required: false
+        default: '60s'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 확인 문자열 체크
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "stress" ]; then
+            echo "'stress'를 입력해야 실행됩니다."
+            exit 1
+          fi
+
+  stress-test:
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: S3에서 ansible 설정 파일 다운로드
+        run: |
+          aws s3 cp s3://fastforward-tfstate/ansible.cfg ansible_files/ansible.cfg
+          aws s3 cp s3://fastforward-tfstate/inventory.yml ansible_files/inventory.yml
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-northeast-2
+
+      - name: SSH 키 설정
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Ansible 설치
+        run: pip install ansible --break-system-packages
+
+      - name: stress_test.yml 실행
+        working-directory: ansible_files
+        run: |
+          # install_only면 --tags install, install_and_run이면 --tags run (설치 포함)
+          if [ "${{ github.event.inputs.stress_mode }}" == "install_only" ]; then
+            TAGS="install"
+          else
+            TAGS="run"
+          fi
+
+          ansible-playbook -i inventory.yml stress_test.yml \
+            --tags "$TAGS" \
+            --limit "${{ github.event.inputs.target_hosts }}" \
+            --extra-vars "stress_cpu_workers=${{ github.event.inputs.stress_cpu_workers }} stress_timeout=${{ github.event.inputs.stress_timeout }}"
