@@ -147,6 +147,11 @@ resource "aws_instance" "bastion_server" {
     aws_security_group.bastion_sg.id
   ]
 
+  user_data = <<-EOF
+              #!/bin/bash
+              timedatectl set-timezone Asia/Seoul
+              EOF
+
   tags = {
     Name = "bastion-server"
     Role = "public-bastion"
@@ -172,6 +177,12 @@ resource "aws_instance" "private_servers" {
   vpc_security_group_ids = [
     aws_security_group.private_server_sg[each.key].id
   ]
+
+  user_data = <<-EOF
+              #!/bin/bash
+              timedatectl set-timezone Asia/Seoul
+              EOF
+
 
   tags = {
     Name = each.key
