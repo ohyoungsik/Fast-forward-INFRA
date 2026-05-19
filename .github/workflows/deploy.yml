@@ -13,12 +13,8 @@ name: deploy
 on:
   push:
     branches: [main]
-    paths:
-      - "terraform_files/**"
-      - "ansible_files/**"
-      # - ".github/workflows/**"
-    # paths-ignore:
-    #   - '.github/workflows/destroy.yml'
+    # 어디가 수정되었건 일단 deploy 실행
+
  
 jobs:
   # 어떤 파일이 바뀌었는지 감지 → 이후 job 실행 여부 결정
@@ -27,7 +23,6 @@ jobs:
     name: Detect changed files
     runs-on: ubuntu-latest
     outputs:
-      terraform: ${{ steps.filter.outputs.terraform }}
       ansible: ${{ steps.filter.outputs.ansible }}
       # role별 변경 감지 output 추가
       role_common: ${{ steps.filter.outputs.role_common }}
@@ -79,9 +74,11 @@ jobs:
   terraform-apply:
     name: Terraform apply
     needs: changed-files
-    if: needs.changed-files.outputs.terraform == 'true'
     runs-on: ubuntu-latest
     environment: production  # GitHub environment 보호 규칙 적용 (수동 승인)
+    # is_new_provisioning: EC2가 새로 생성됐는지 여부 → trigger-app-deployments에서 참조
+    outputs:
+      is_new_provisioning: ${{ steps.check_new.outputs.is_new }}
     defaults:
       run:
         working-directory: terraform_files
@@ -104,50 +101,116 @@ jobs:
       - name: Terraform init
         run: terraform init
 
-      # 임시. 삭제할 것
-      # - name: Terraform refresh      # 추가
-      #   run: terraform refresh
- 
-      # plan.yml에서 저장한 tfplan artifact를 가져오기 위해 PR 번호 필요
-      - name: Get PR number
-        id: pr
+      # -detailed-exitcode:
+      # exit 0 = 변경사항 없음 (인프라 이미 존재, 변경 없음)
+      # exit 1 = 에러
+      # exit 2 = 변경사항 있음 (인프라 없거나 변경 필요) → apply 필요
+      - name: Terraform plan
+        id: plan
         run: |
-          PR_NUMBER=$(gh pr list --state merged --base feat/github_action \
-            --json number,mergeCommit \
-            --jq '.[] | select(.mergeCommit.oid == "${{ github.sha }}") | .number')
-          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          set +e
+          terraform plan -detailed-exitcode -out=tfplan 2>&1
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          set -e
  
-      # PR 시점에 저장해둔 tfplan 바이너리 다운로드
-      # retention-days 경과 등으로 artifact가 없어도 continue-on-error로 계속 진행
-      - name: Download plan artifact
-        id: download
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan-${{ steps.pr.outputs.number }}
-          path: terraform_files/
-        continue-on-error: true
+      - name: Check plan exit code
+        run: |
+          echo "→ Terraform plan exit code: ${{ steps.plan.outputs.exit_code }}"
+          if [ "${{ steps.plan.outputs.exit_code }}" == "1" ]; then
+            echo "Terraform plan 실패"
+            exit 1
+          fi
  
-      # artifact가 없을 때만 새로 plan 실행
-      - name: Terraform plan (artifact 없을 때만 실행)
-        if: steps.download.outcome == 'failure'
-        run: terraform plan -out=tfplan
- 
-      # apply 완료 시 main.tf의 local_file 리소스가
-      # inventory.yml, ansible.cfg를 ../ansible_files/에 자동 생성
+      # exit code 2일 때만 apply (변경사항 있을 때)
+      # exit code 0이면 인프라 이미 존재하고 변경 없음 → apply 스킵
       - name: Terraform apply
-        run: terraform apply tfplan
+        if: steps.plan.outputs.exit_code == '2'
+        run: terraform apply -auto-approve tfplan
+ 
+      # exit code 0: 기존 인프라 유지 → is_new=false
+      # exit code 2: apply 실행 → EC2 create action 확인
+      # 변경사항이 있어도 새로 생긴 인스턴스가 있는지 없는지는 run: 안의 쉘 스크립트로 확인
+      - name: Check if new EC2 provisioned
+        id: check_new
+        run: |
+          if [ "${{ steps.plan.outputs.exit_code }}" == "0" ]; then
+            echo "→ 인프라 변경 없음, 새 프로비저닝 아님"
+            echo "is_new=false" >> $GITHUB_OUTPUT
+          else
+            ADDED=$(terraform show -json tfplan 2>/dev/null | \
+              jq '[.resource_changes[] |
+                select(
+                  .type == "aws_instance" and
+                  (.change.actions | contains(["create"]))
+                )
+              ] | length' || echo "0")
+            echo "→ 새로 생성된 EC2 수: $ADDED"
+            if [ "$ADDED" -gt "0" ]; then
+              echo "is_new=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_new=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+      
+      # # plan.yml에서 저장한 tfplan artifact를 가져오기 위해 PR 번호 필요
+      # - name: Get PR number
+      #   id: pr
+      #   run: |
+      #     PR_NUMBER=$(gh pr list --state merged --base feat/github_action \
+      #       --json number,mergeCommit \
+      #       --jq '.[] | select(.mergeCommit.oid == "${{ github.sha }}") | .number')
+      #     echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+      # # PR 시점에 저장해둔 tfplan 바이너리 다운로드
+      # # retention-days 경과 등으로 artifact가 없어도 continue-on-error로 계속 진행
+      # - name: Download plan artifact
+      #   id: download
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: tfplan-${{ steps.pr.outputs.number }}
+      #     path: terraform_files/
+      #   continue-on-error: true
+ 
+      # # artifact가 없을 때만 새로 plan 실행
+      # - name: Terraform plan (artifact 없을 때만 실행)
+      #   if: steps.download.outcome == 'failure'
+      #   run: terraform plan -out=tfplan
+ 
+      # # apply 완료 시 main.tf의 local_file 리소스가
+      # # inventory.yml, ansible.cfg를 ../ansible_files/에 자동 생성
+      # - name: Terraform apply
+      #   run: terraform apply tfplan
+
+      # # apply 결과에서 새로 생성된 EC2 리소스 수 확인
+      # # terraform show로 plan 내용 파싱 → create action이 있으면 새 프로비저닝으로 판단
+      # - name: Check if new EC2 provisioned
+      #   id: check_new
+      #   run: |
+      #     ADDED=$(terraform show -json tfplan 2>/dev/null | \
+      #       jq '[.resource_changes[] | 
+      #         select(
+      #           .type == "aws_instance" and 
+      #           (.change.actions | contains(["create"]))
+      #         )
+      #       ] | length' || echo "0")
+      #     echo "→ 새로 생성된 EC2 수: $ADDED"
+      #     if [ "$ADDED" -gt "0" ]; then
+      #       echo "is_new=true" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "is_new=false" >> $GITHUB_OUTPUT
+      #     fi
       
         # inventory.yml, ansible.cfg를 실제 생성 확인
       - name: Check generated files
-        run: |
-          ls -la ./
+        if: steps.plan.outputs.exit_code == '2'
+        run: ls -la ./
       
       # apply 후 생성된 파일을 S3에 업로드
-      # aws s3 cp terraform_files/ansible.cfg s3://fastforward-tfstate/ansible.cfg
-      # aws s3 cp terraform_files/inventory.yml s3://fastforward-tfstate/inventory.yml
       - name: Upload ansible config to S3
+        if: steps.plan.outputs.exit_code == '2'
         run: |
           aws s3 cp ansible.cfg s3://fastforward-tfstate/ansible.cfg
           aws s3 cp inventory.yml s3://fastforward-tfstate/inventory.yml
@@ -176,8 +239,10 @@ jobs:
     if: |
       always() &&
       !failure() &&
-      (needs.changed-files.outputs.ansible == 'true' ||
-       needs.changed-files.outputs.terraform == 'true')
+      (
+        needs.changed-files.outputs.ansible == 'true' ||
+        needs.terraform-apply.outputs.is_new_provisioning == 'true'
+      )
     runs-on: ubuntu-latest
  
     steps:
@@ -228,13 +293,11 @@ jobs:
       - name: Build ansible tags
         id: tags
         run: |
-          needs='${{ toJSON(needs.changed-files.outputs) }}'
-
-          # terraform 변경 또는 site.yml/requirements.yml/group_vars 전체 변경이면 전체 실행
-          if [ "${{ needs.changed-files.outputs.terraform }}" == "true" ] || \
+          # 새 프로비저닝이거나 공통 설정 변경이면 전체 실행
+          if [ "${{ needs.terraform-apply.outputs.is_new_provisioning }}" == "true" ] || \
              [ "${{ needs.changed-files.outputs.role_group_vars }}" == "true" ]; then
             echo "RUN_ALL=true" >> $GITHUB_OUTPUT
-            echo "→ 전체 실행 (terraform 변경 또는 공통 설정 변경)"
+            echo "→ 전체 실행"
           else
             TAGS=""
             [ "${{ needs.changed-files.outputs.role_common }}"     == "true" ] && TAGS="$TAGS,common"
@@ -244,7 +307,7 @@ jobs:
             [ "${{ needs.changed-files.outputs.role_bastion }}"    == "true" ] && TAGS="$TAGS,bastion"
             [ "${{ needs.changed-files.outputs.role_monitoring }}" == "true" ] && TAGS="$TAGS,monitoring"
             [ "${{ needs.changed-files.outputs.role_logging }}"    == "true" ] && TAGS="$TAGS,logging"
-            TAGS="${TAGS#,}"  # 앞의 쉼표 제거
+            TAGS="${TAGS#,}"
             echo "TAGS=$TAGS" >> $GITHUB_OUTPUT
             echo "→ 부분 실행 tags: $TAGS"
           fi
@@ -266,14 +329,15 @@ jobs:
         run: echo "ansible_files 변경 없음, Ansible 실행 스킵"
         
 # Terraform이 새로 프로비저닝됐을 때만 BE -> FE 순서로 배포 트리거
+# (terraform 코드 수정 없이 destroy 후 재프로비저닝하는 경우도 포함)
   trigger-app-deployments:
     name: Trigger BE and FE deployments
-    needs: [changed-files, ansible-configure]
+    needs: [terraform-apply, ansible-configure]
     # Terraform이 실행됐을 때(새 프로비저닝)만 실행
     if: |
       always() &&
       !failure() &&
-      needs.changed-files.outputs.terraform == 'true'
+      needs.terraform-apply.outputs.is_new_provisioning == 'true'
     runs-on: ubuntu-latest
  
     steps:
@@ -335,148 +399,3 @@ jobs:
               }
             })
             console.log('FE deployment triggered with Bastion IP: ${{ steps.get_bastion_ip.outputs.bastion_ip }}')
-
-      # - name: Run Ansible
-      #   working-directory: ansible_files
-      #   run: |
-      #     ansible-playbook -i ./inventory.yml site.yml
- 
-      # terraform이 생성한 inventory.yml로 대상 서버 지정
-      # ansible.cfg의 ProxyCommand로 bastion 경유 접속
-      # - name: Run playbook
-      #   working-directory: ansible_files
-      #   run: |
-      #     ansible-playbook -i inventory.yml site.yml \
-      #       --private-key ~/.ssh/id_rsa
-
-# name: Deploy
-
-# on:
-#   push:
-#     branches: [feat/github_action]
-#     paths:
-#       - "terraform_files/**"
-#       - "ansible_files/**"
-
-# jobs:
-#   changed-files:
-#     name: Detect changed files
-#     runs-on: ubuntu-latest
-#     outputs:
-#       terraform: ${{ steps.filter.outputs.terraform }}
-#       ansible: ${{ steps.filter.outputs.ansible }}
-
-#     steps:
-#       - uses: actions/checkout@v4
-
-#       - uses: dorny/paths-filter@v3
-#         id: filter
-#         with:
-#           filters: |
-#             terraform:
-#               - 'terraform_files/**'
-#             ansible:
-#               - 'ansible_files/**'
-
-#   terraform-apply:
-#     name: Terraform apply
-#     needs: changed-files
-#     if: needs.changed-files.outputs.terraform == 'true'
-#     runs-on: ubuntu-latest
-#     environment: production
-#     defaults:
-#       run:
-#         working-directory: terraform_files
-#     outputs:
-#       bastion_ip: ${{ steps.output.outputs.bastion_ip }}
-#       inventory_content: ${{ steps.output.outputs.inventory_content }}
-
-#     steps:
-#       - uses: actions/checkout@v4
-
-#       - uses: hashicorp/setup-terraform@v3
-#         with:
-#           terraform_wrapper: false
-
-#       - uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ap-northeast-2
-
-#       - name: Terraform init
-#         run: terraform init
-
-#       - name: Get PR number
-#         id: pr
-#         run: |
-#           PR_NUMBER=$(gh pr list --state merged --base dev \
-#             --json number --jq '.[0].number')
-#           echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
-#         env:
-#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-#       - name: Download plan artifact
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: tfplan-${{ steps.pr.outputs.number }}
-#           path: terraform_files/
-
-#       - name: Terraform apply
-#         run: terraform apply tfplan
-
-#       - name: Export outputs
-#         id: output
-#         run: |
-#           echo "bastion_ip=$(terraform output -raw bastion_ip)" >> $GITHUB_OUTPUT
-#           terraform output -raw inventory_content > ../ansible_files/inventory.yml
-
-#       - name: Upload inventory artifact
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: ansible-inventory
-#           path: ansible_files/inventory.yml
-#           retention-days: 1
-
-#   ansible-configure:
-#     name: Ansible configure
-#     needs: [changed-files, terraform-apply]
-#     if: |
-#       always() &&
-#       !failure() &&
-#       (needs.changed-files.outputs.ansible == 'true' ||
-#        needs.changed-files.outputs.terraform == 'true')
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - uses: actions/checkout@v4
-
-#       - name: Download inventory artifact
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: ansible-inventory
-#           path: ansible_files/
-
-#       - name: Setup SSH
-#         run: |
-#           mkdir -p ~/.ssh
-#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-#           chmod 600 ~/.ssh/id_rsa
-
-#       - name: Inject bastion IP into ansible.cfg
-#         run: |
-#           sed -i "s/BASTION_IP/${{ needs.terraform-apply.outputs.bastion_ip }}/g" \
-#             ansible_files/ansible.cfg
-
-#       - name: Install ansible
-#         run: pip install ansible --break-system-packages
-
-#       - name: Install ansible requirements
-#         working-directory: ansible_files
-#         run: ansible-galaxy install -r requirements.yml
-
-#       - name: Run playbook
-#         working-directory: ansible_files
-#         run: |
-#           ansible-playbook -i inventory.yml site.yml \
-#             --private-key ~/.ssh/id_rsa

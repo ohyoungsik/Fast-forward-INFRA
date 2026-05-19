@@ -239,3 +239,7 @@ resource "local_file" "s3_env" {
   # 핵심 해결책: 어떤 환경에서도 ansible_files 내의 db 역할 폴더를 찾아가도록 설정
   filename = "${path.module}/../ansible_files/roles/db/files/s3_env.sh"
 }
+
+
+# 코드가 수정된 부분이 없어도 단순 destroy 후 다시 push했을 때,
+# 인프라가 없다는 걸 알아서 캐치한 후에

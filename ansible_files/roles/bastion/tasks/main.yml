@@ -34,14 +34,6 @@
     group: www-data
     mode: '0644'
   when: not react_build.stat.exists
-  
-# - name: "bastion index.html 배포"
-#   template:
-#     src: index.html.j2
-#     dest: /var/www/html/index.html
-#     owner: www-data
-#     group: www-data
-#     mode: '0644'
 
 - name: "bastion nginx reverse proxy config 배포"
   template:
