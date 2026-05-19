@@ -1,0 +1,69 @@
+---
+# stress_test.yml
+# 모든 노드에 stress를 설치하고 과부하 테스트를 실행하는 playbook
+# 사용법:
+#   설치만:    ansible-playbook -i inventory.yml stress_test.yml --tags install
+#   테스트:    ansible-playbook -i inventory.yml stress_test.yml --tags run
+#   전체:      ansible-playbook -i inventory.yml stress_test.yml
+
+- hosts: all
+  become: yes
+
+  vars:
+    # stress 실행 옵션 (필요에 따라 --extra-vars로 오버라이드 가능)
+    stress_cpu_workers: 2       # CPU 과부하 워커 수 (코어 수에 맞게 조정)
+    stress_vm_workers: 1        # 메모리 과부하 워커 수
+    stress_vm_bytes: "512M"     # 워커당 메모리 사용량
+    stress_timeout: "60s"       # 테스트 지속 시간
+
+  tasks:
+
+    # ── 설치 ────────────────────────────────────────────────────────────────
+    - name: stress 패키지 설치
+      apt:
+        name: stress
+        state: present
+        update_cache: yes
+      tags: [install, run]
+
+    - name: stress 설치 확인
+      command: stress --version
+      register: stress_version
+      changed_when: false
+      tags: [install, run]
+
+    - name: stress 버전 출력
+      debug:
+        msg: "{{ inventory_hostname }} → {{ stress_version.stdout }}"
+      tags: [install, run]
+
+    # ── CPU + Memory 과부하 테스트 ──────────────────────────────────────────
+    - name: stress 실행 (CPU + Memory)
+      command: >
+        stress
+        --cpu {{ stress_cpu_workers }}
+        --vm {{ stress_vm_workers }}
+        --vm-bytes {{ stress_vm_bytes }}
+        --timeout {{ stress_timeout }}
+        --verbose
+      async: 120        # 최대 대기 120초 (timeout보다 여유있게)
+      poll: 0           # 비동기 실행 (블로킹 방지)
+      register: stress_job
+      tags: [run]
+
+    - name: stress 작업 완료 대기
+      async_status:
+        jid: "{{ stress_job.ansible_job_id }}"
+      register: stress_result
+      until: stress_result.finished
+      retries: 24       # 5초 간격으로 최대 24회 (120초)
+      delay: 5
+      tags: [run]
+
+    - name: stress 결과 출력
+      debug:
+        msg: |
+          [{{ inventory_hostname }}] stress 완료
+          종료 코드: {{ stress_result.rc }}
+          출력: {{ stress_result.stdout | default('(없음)') }}
+      tags: [run]
