@@ -110,24 +110,6 @@ resource "aws_route_table_association" "private_assoc" {
   route_table_id = aws_route_table.private_rt.id
 }
 
-# pem 파일 관련 작업
-# 알고리즘 결정
-# resource "tls_private_key" "pk" {
-#   algorithm = "RSA"
-#   rsa_bits  = 4096
-# }
-# # 키등록
-# resource "aws_key_pair" "kp" {
-#   key_name   = var.key_name
-#   public_key = tls_private_key.pk.public_key_openssh
-# }
-# # 개인키 가져오기
-# resource "local_file" "project_key_pem" {
-#   filename        = "${path.module}/${var.key_name}.pem"
-#   content         = tls_private_key.pk.private_key_pem
-#   file_permission = "0600"
-# }
-
 # -------------------------
 # EC2
 # -------------------------
@@ -169,6 +151,8 @@ resource "aws_instance" "private_servers" {
     volume_type = "gp3"
   }
 
+  iam_instance_profile = each.key == "postgre-db-server" ? aws_iam_instance_profile.db_profile.name : null
+
   vpc_security_group_ids = [
     aws_security_group.private_server_sg[each.key].id
   ]
@@ -199,19 +183,7 @@ resource "local_file" "ansible_inventory" {
   })
   filename = "${path.module}/inventory.yml"
 }
-# resource "local_file" "ansible_inventory" {
-#   content = templatefile("${path.module}/inventory.yml.tpl", {
-#     bastion_public_ip  = aws_instance.bastion_server.public_ip
-#     nginx_private_ip   = aws_instance.private_servers["nginx-fe-server"].private_ip
-#     fastapi_private_ip = aws_instance.private_servers["fastapi-be-server"].private_ip
-#     postgre_private_ip = aws_instance.private_servers["postgre-db-server"].private_ip
-#     key_path           = abspath(path.module)
-#     key_name           = var.key_name
-#   })
-#   filename = "../ansible_files/inventory.yml"
-# }
 
-# main.tf 또는 별도 ansible.tf에 추가
 
 resource "local_file" "ansible_cfg" {
   filename = "${path.module}/ansible.cfg"
@@ -220,38 +192,6 @@ resource "local_file" "ansible_cfg" {
     gen_path   = path.module
   })
 }
-
-# Terraform에서 ansible_files/group_vars/all.yml 생성
-
-# resource "local_file" "prometheus_vars" {
-
-#   filename = "${path.module}/../ansible_files/group_vars/bastion.yml"
-
-#   content = yamlencode({
-
-#     prometheus_targets = {
-#       node = [
-#         {
-#           targets = [
-
-#             # "${aws_instance.bastion_server.public_ip}:9100",
-#             "${aws_instance.bastion_server.private_ip}:9100",
-
-#             "${aws_instance.private_servers["nginx-fe-server"].private_ip}:9100",
-
-#             "${aws_instance.private_servers["fastapi-be-server"].private_ip}:9100",
-
-#             "${aws_instance.private_servers["postgre-db-server"].private_ip}:9100"
-#           ]
-
-#           labels = {
-#             env = "lab"
-#           }
-#         }
-#       ]
-#     }
-#   })
-# }
 
 # cloud init 등 서버의 다양한 환경 초기화를 위해
 # ansible 실행 전 60초 간 대기
@@ -272,65 +212,11 @@ resource "terraform_data" "wait_for_instance" {
     [for instance in aws_instance.private_servers : instance.id]
   )
 
-  # windows 
-  # provisioner "local-exec" {
-  #   command     = "Start-Sleep -Seconds 60"
-  #   interpreter = ["PowerShell", "-Command"]
-  # }
-
   # linux
   provisioner "local-exec" {
     command = "sleep 60"
   }
 }
-
-
-# github actions 활용 시엔 action runner에서 자동으로 실행하는 부분.
-# resource "terraform_data" "ansible_run" {
-#   # 모든 AWS 리소스가 다 생성된 후에 ansible_run 실행하도록 바꾸기
-#   depends_on = [
-
-#     # inventory 생성 완료
-#     local_file.ansible_inventory,
-
-#     # prometheus 변수 생성 완료
-#     local_file.prometheus_vars,
-
-#     # EC2 생성 완료 + SSH 대기 완료
-#     terraform_data.wait_for_instance,
-
-#     # NAT 및 private 인터넷 경로 준비 완료
-#     aws_nat_gateway.nat,
-#     aws_route.private_nat_route,
-
-#     # public route도 명시적으로 보장
-#     aws_route.public_internet_route
-#   ]
-
-#   triggers_replace = concat(
-#     [aws_instance.bastion_server.id],
-#     [for instance in aws_instance.private_servers : instance.id]
-#   )
-
-#   provisioner "local-exec" {
-#     working_dir = "${path.module}/../ansible_files"
-#     # scp -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip}:~/.ssh
-#     # Bastion 서버에 pem 키 파일 복사
-#     # (Bastion -> Private SSH 접속을 위해 필요)
-#     # 개행 기호를 넣으면 깨질 수 있으므로 한 줄로 작성
-
-#     # ssh -o StrictHostKeyChecking=no -i ../terraform_files/${var.key_name}.pem ubuntu@${aws_instance.bastion_server.public_ip} "chmod 400 ~/.ssh/${var.key_name}.pem"
-#     # Bastion 서버 내부의 pem 권한 설정
-#     # SSH는 권한이 너무 열려 있으면 key 사용을 거부함
-#     command       = <<EOT
-
-#       ansible-galaxy install -r requirements.yml -p ~/.ansible/roles
-#       ansible-galaxy collection install prometheus.prometheus
-#       ansible-galaxy collection install grafana.grafana
-#       ansible-playbook -f 1 site.yml
-#     EOT
-#   }
-# }
 
 # 랜덤 ID 생성 (고유한 버킷 이름을 위해 필요)
 resource "random_id" "bucket_suffix" {
