@@ -21,13 +21,27 @@
     group: www-data
     mode: '0755'
 
-- name: "bastion index.html 배포"
+- name: check if react build exists
+  stat:
+    path: /var/www/html/index.html
+  register: react_build
+ 
+- name: deploy default nginx index.html (only if react build does not exist)
   template:
     src: index.html.j2
     dest: /var/www/html/index.html
     owner: www-data
     group: www-data
     mode: '0644'
+  when: not react_build.stat.exists
+  
+# - name: "bastion index.html 배포"
+#   template:
+#     src: index.html.j2
+#     dest: /var/www/html/index.html
+#     owner: www-data
+#     group: www-data
+#     mode: '0644'
 
 - name: "bastion nginx reverse proxy config 배포"
   template:
