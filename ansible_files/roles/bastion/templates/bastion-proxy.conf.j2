@@ -9,6 +9,31 @@ server {
         root /var/www/html;
     }
 
+    # FastAPI API
+    location /api/ {
+        proxy_pass http://172.16.20.20:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+
+    # FastAPI WebSocket
+    location /ws/ {
+        proxy_pass http://172.16.20.20:8000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # React Frontend
     location / {
         proxy_pass http://172.16.20.10/;
         proxy_set_header Host $host;
@@ -23,3 +48,7 @@ server {
     access_log /var/log/nginx/access.log;
     error_log /var/log/nginx/error.log;
 }
+
+## Certbot 이후 실제 파일에 443 블록이 생기면, /api/, /ws/가 443 블록에도 들어갔는지 확인
+## sudo nginx -T | grep -A15 "location /ws/"
+## sudo nginx -T | grep -A15 "location /api/"
