@@ -16,16 +16,3 @@
   tags:
     - timezone
     - common
-
-# - name: create user
-#   user:
-#     name: "{{ create_user }}"
-#     groups: sudo
-#     append: yes
-#     shell: /bin/bash
-
-# - name: sudo without password
-#   copy:
-#     dest: "/etc/sudoers.d/{{ create_user }}"
-#     content: "{{ create_user }} ALL=(ALL) NOPASSWD:ALL"
-#     mode: "0440"

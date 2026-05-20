@@ -11,13 +11,19 @@
     group: www-data
     mode: '0755'
 
-- name: deploy private nginx index.html
+- name: check if react build exists
+  stat:
+    path: /var/www/html/index.html
+  register: react_build
+ 
+- name: deploy default nginx index.html (only if react build does not exist)
   template:
     src: index.html.j2
     dest: /var/www/html/index.html
     owner: www-data
     group: www-data
     mode: '0644'
+  when: not react_build.stat.exists
 
 - name: deploy nginx config
   template:
