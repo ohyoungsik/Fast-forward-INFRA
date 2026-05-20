@@ -13,7 +13,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: bfkbzvtd8ke0wd
+            datasourceUid: prometheus_ds
             model:
               editorMode: code
               expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)
@@ -65,7 +65,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: bfkbzvtd8ke0wd
+            datasourceUid: prometheus_ds
             model:
               editorMode: code
               expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
@@ -117,7 +117,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: bfkbzvtd8ke0wd
+            datasourceUid: prometheus_ds
             model:
               editorMode: code
               expr: (1 - (node_filesystem_free_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100
@@ -169,7 +169,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: bfkbzvtd8ke0wd
+            datasourceUid: prometheus_ds
             model:
               editorMode: code
               expr: rate(node_network_receive_bytes_total[1m]) * 8 / 1024 / 1024

@@ -150,7 +150,7 @@
 - name: alerting config file copy (연락처 설정)
   copy:
     src: alerting.yml
-    dest: /etc/grafana/provisioning/alerting/alerting.yml
+    dest: /etc/grafana/provisioning/alerting/alerting.yaml
     owner: grafana
     group: grafana
     mode: '0644'
@@ -161,10 +161,30 @@
 - name: alert rules config file copy (알림 규칙 설정)
   copy:
     src: rules.yml
-    dest: /etc/grafana/provisioning/alerting/rules.yml
+    dest: /etc/grafana/provisioning/alerting/rules.yaml
     owner: grafana
     group: grafana
     mode: '0644'
   become: yes
   notify: restart grafana
   # 설명: 우리가 추출할 rules.yaml (CPU, RAM, 디스크 트래픽 임계치 설정) 파일을 서버로 복사합니다.
+
+
+- name: Create Grafana datasources provisioning directory
+  file:
+    path: /etc/grafana/provisioning/datasources
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: '0755'
+  become: yes
+
+- name: datasource config file copy (프로메테우스 연결 자동화)
+  copy:
+    src: datasource.yml
+    dest: /etc/grafana/provisioning/datasources/datasource.yaml
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  become: yes
+  notify: restart grafana
