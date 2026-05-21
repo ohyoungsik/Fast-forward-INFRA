@@ -150,7 +150,7 @@
 - name: alerting config file copy (연락처 설정)
   copy:
     src: alerting.yml
-    dest: /etc/grafana/provisioning/alerting/alerting.yaml
+    dest: /etc/grafana/provisioning/alerting/alerting.yml
     owner: grafana
     group: grafana
     mode: '0644'
@@ -161,7 +161,7 @@
 - name: alert rules config file copy (알림 규칙 설정)
   copy:
     src: rules.yml
-    dest: /etc/grafana/provisioning/alerting/rules.yaml
+    dest: /etc/grafana/provisioning/alerting/rules.yml
     owner: grafana
     group: grafana
     mode: '0644'

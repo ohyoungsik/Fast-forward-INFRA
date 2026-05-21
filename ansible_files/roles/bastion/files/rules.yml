@@ -6,7 +6,7 @@ groups:
     interval: 1m
     rules:
       - uid: cflprhe7141z4a
-        title: CPU 사용률 80% 초과
+        title: CPU 사용률 70% 초과
         condition: C
         data:
           - refId: A
@@ -30,7 +30,7 @@ groups:
               conditions:
                   - evaluator:
                       params:
-                          - 80
+                          - 70
                       type: gt
                     operator:
                       type: and
@@ -51,12 +51,12 @@ groups:
               type: threshold
         noDataState: NoData
         execErrState: Error
-        for: 1m
+        for: 10s
         annotations:
           description: 서버의 연산 부하가 높습니다. 현재 프로세스 점검이 필요합니다.
         isPaused: false
         notification_settings:
-          receiver: Telegram Alert
+          receiver: "Telegram Alert"
       - uid: bflprk5n0l6gwa
         title: 메모리 점유율 80% 초과
         condition: C
@@ -108,7 +108,7 @@ groups:
           description: 메모리 잔량이 부족 합니다.
         isPaused: false
         notification_settings:
-          receiver: Telegram Alert
+          receiver: "Telegram Alert"
       - uid: cflprm5pnm8lcb
         title: 디스크 용량 90% 돌파
         condition: C
@@ -160,7 +160,7 @@ groups:
           description: 서버 저장 공간이 거의 꽉 찼습니다.
         isPaused: false
         notification_settings:
-          receiver: Telegram Alert
+          receiver: "Telegram Alert"
       - uid: dflprnoa3ri80c
         title: 네트워크 트래픽 급증
         condition: C
@@ -212,4 +212,4 @@ groups:
           description: 초당 유입되는 네트워크 데이터가 설정값100M을 넘었습니다.
         isPaused: false
         notification_settings:
-          receiver: Telegram Alert
+          receiver: "Telegram Alert"
