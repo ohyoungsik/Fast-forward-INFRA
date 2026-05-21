@@ -10,4 +10,4 @@ contactPoints:
           chatid: "8722599561"
 policies:
   - orgId: 1
-    receiver: Telegram Alert
+    receiver: "Telegram Alert"
