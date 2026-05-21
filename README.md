@@ -11,10 +11,11 @@
 Fast-forward-INFRA/
 ├── .github/
 │   └── workflows/
-│       ├── validate.yml        # PR 시 Terraform fmt/validate + Ansible lint
+│       ├── validate.yml        # PR 시 Terraform fmt/validate + Ansible lint + BE/FE 배포
 │       ├── plan.yml            # PR 시 Terraform plan 실행 및 결과 코멘트
 │       ├── deploy.yml          # main 브랜치 merge 시 Terraform apply + Ansible 실행
 │       └── destroy.yml         # 수동 실행: 인프라 전체 또는 부분 삭제
+│       └── stress_test.yml     # 수동 실행: 서버에 stress 설치 및 CPU 과부하 테스트 진행
 ├── terraform_files/
 │   ├── main.tf                 # VPC, Subnet, EC2, NAT, S3, Inventory 생성
 │   ├── variables.tf            # 변수 정의 (리전, CIDR, 인스턴스 타입 등)
@@ -37,7 +38,7 @@ Fast-forward-INFRA/
         ├── web/                # Nginx 설치 및 Reverse Proxy 설정
         ├── was/                # FastAPI + Gunicorn + venv 설치 및 서비스 등록
         ├── db/                 # PostgreSQL 설치, DB/User 생성 및 권한 설정
-        ├── bastion/            # Nginx Reverse Proxy + Prometheus + Grafana 설치
+        ├── bastion/            # Nginx Reverse Proxy + Prometheus + Grafana 설치, Telegram 알림 기능
         ├── monitoring/         # Node Exporter 설치 및 서비스 등록
         └── logging/            # Fluent-bit 설치 및 로그 수집 설정
 ```
@@ -104,8 +105,9 @@ Node Exporter(:9100) ← Prometheus(Bastion) → Grafana(Bastion:3000)
 |---|---|---|
 | `validate.yml` | PR to main | `terraform fmt -check`, `terraform validate`, `ansible-lint` |
 | `plan.yml` | PR to main | `terraform plan -out=tfplan` → PR 코멘트 자동 등록, artifact 7일 보관 |
-| `deploy.yml` | Push to main | Terraform apply + Ansible playbook 실행 (environment: production 승인 필요) |
+| `deploy.yml` | Push to main | Terraform apply + Ansible playbook 실행 (environment: production 승인 필요), 인스턴스가 처음 생성되었다면 BE/FE 자동 배포 |
 | `destroy.yml` | 수동(workflow_dispatch) | `"destroy"` 문자열 확인 후 전체/EC2/SG 선택 삭제 |
+| `destroy.yml` | 수동(workflow_dispatch) | `"stress"` 문자열 확인 후 서버 선택 후 stress 설치 및 과부하 테스트 |
 
 ### S3를 통한 파일 전달
 
@@ -169,7 +171,7 @@ Terraform apply 후 생성된 `inventory.yml`과 `ansible.cfg`는 GitHub Actions
 #### `bastion`
 - Nginx Reverse Proxy 설정 (`172.16.20.10:80` 포워딩)
 - Prometheus 설치 (`prometheus.prometheus` Collection, v2.47.0)
-- Grafana 설치 (apt 저장소 등록, GPG 키 설정)
+- Grafana 설치 (apt 저장소 등록, GPG 키 설정), 리소스 이상 발생 시 Telegram으로 알림 전달
 
 #### `monitoring` (전체 서버)
 - Node Exporter v1.7.0 설치 및 systemd 서비스 등록
@@ -177,7 +179,7 @@ Terraform apply 후 생성된 `inventory.yml`과 `ansible.cfg`는 GitHub Actions
 
 #### `logging` (전체 서버)
 - Fluent-bit 설치 (GPG 키 등록, apt 저장소 추가)
-- 수집 로그: `/var/log/syslog`, `/var/log/auth.log`, `/var/log/nginx/access.log`, `/var/log/nginx/error.log`
+- 수집 로그: `/var/log/auth.log`, `/var/log/nginx/access.log`, `/var/log/nginx/error.log`
 - Elasticsearch(`10.0.0.10:9200`)로 로그 전송
 
 ### Ansible 실행 구조 (site.yml)
@@ -221,6 +223,7 @@ deploy.yml은 변경된 파일을 감지하여 수정된 Role만 선택적으로
 | `AWS_ACCESS_KEY_ID` | AWS IAM Access Key |
 | `AWS_SECRET_ACCESS_KEY` | AWS IAM Secret Key |
 | `SSH_PRIVATE_KEY` | EC2 접속용 SSH Private Key (id_ed25519) |
+| `PAT_TOKEN` | BE, FE 자동 배포 시 해당 레포지토리들을 참조하기 위한 토큰 |
 
 > EC2 Key Pair(`FF-test-key`)의 공개키는 AWS에 미리 등록되어 있어야 합니다.
 
@@ -235,7 +238,17 @@ deploy.yml은 변경된 파일을 감지하여 수정된 Role만 선택적으로
 3. `plan.yml` — Terraform Plan 결과가 PR 코멘트에 자동 등록
 4. PR Merge → `deploy.yml` 자동 실행
    - GitHub Environment `production` 승인 필요
-   - Terraform apply → Ansible 실행 순으로 자동 처리
+   - Terraform apply → Ansible -> FE/BE 배포 순으로 자동 처리
+
+### 배포 로직
+```
+main push
+→ terraform plan (인프라 상태 감지)
+  → 변경 없음: ansible 변경사항만 확인
+  → 변경 있음: terraform apply
+    → EC2 새로 생성됨: ansible 전체 실행 → BE 배포 → FE 배포
+    → EC2 변경 없음: ansible 실행 안 함 (보안그룹 등 인프라만 변경)
+```
 
 ### 인프라 삭제
 
