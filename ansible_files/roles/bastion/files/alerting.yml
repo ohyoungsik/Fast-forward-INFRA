@@ -1,13 +1,34 @@
 apiVersion: 1
+
+templates:
+  - orgId: 1
+    name: my_telegram_template
+    template: |-
+      {{ define "my_telegram_template" }}
+      {{ range .Alerts }}
+      {{ if eq .Status "firing" }}🚨 <b>[임계치 초과] 서버 상태 알림</b>{{ else }}✅ <b>[정상 복구] 서버 상태 알림</b>{{ end }}
+
+      <b>• 알람명:</b> {{ .Labels.alertname }}
+      <b>• 대상서버:</b> {{ .Labels.instance }}
+      <b>• 상세설명:</b> {{ .Annotations.description }}
+      <b>• 발생시간:</b> {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+
+      <i>{{ if eq .Status "firing" }}빠른 조치를 취해주세요!{{ else }}서버가 안정화되었습니다.{{ end }}</i>
+      {{ end }}
+      {{ end }}
+
 contactPoints:
   - orgId: 1
-    name: Telegram Alert
+    name: "Telegram Alert"
     receivers:
       - uid: telegram-receiver-1
         type: telegram
         settings:
           bottoken: "8674034190:AAE4a9EsNsaozYtYTbvFIqJ7FerxMwmWb3g"
           chatid: "8722599561"
+          message: '{{ template "my_telegram_template" . }}'
+          parse_mode: HTML
+
 policies:
   - orgId: 1
-    receiver: Telegram Alert
+    receiver: "Telegram Alert"
