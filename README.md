@@ -247,7 +247,7 @@ main push
   → 변경 없음: ansible 변경사항만 확인
   → 변경 있음: terraform apply
     → EC2 새로 생성됨: ansible 전체 실행 → BE 배포 → FE 배포
-    → EC2 변경 없음: ansible 실행 안 함 (보안그룹 등 인프라만 변경)
+    → EC2 변경 없음: 보안그룹 등 인프라만 변경 -> ansible 변경사항만 확인 
 ```
 
 ### 인프라 삭제
