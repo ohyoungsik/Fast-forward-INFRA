@@ -18,6 +18,7 @@ Fast-forward-INFRA/
 │       └── stress_test.yml     # 수동 실행: 서버에 stress 설치 및 CPU 과부하 테스트 진행
 ├── terraform_files/
 │   ├── main.tf                 # VPC, Subnet, EC2, NAT, S3, Inventory 생성
+│   ├── iam.tf                  # iam user에게 S3 접근 권한 제공
 │   ├── variables.tf            # 변수 정의 (리전, CIDR, 인스턴스 타입 등)
 │   ├── outputs.tf              # Bastion/Private IP, SSH 명령어 출력
 │   ├── provider.tf             # AWS Provider, S3 Remote Backend 설정
@@ -26,6 +27,7 @@ Fast-forward-INFRA/
 │   └── ansible.cfg.tpl         # Ansible 설정 템플릿 (ProxyCommand 포함)
 └── ansible_files/
     ├── site.yml                # 전체 Playbook 진입점
+    ├── stress_test.yml         # 서버에 stress를 설치하고, 과부하 명령어 실행
     ├── requirements.yml        # Galaxy Role/Collection 목록
     ├── group_vars/
     │   ├── all.yml             # 공통 변수 (패키지, 로그 경로, Fluent-bit 설정)
@@ -107,7 +109,7 @@ Node Exporter(:9100) ← Prometheus(Bastion) → Grafana(Bastion:3000)
 | `plan.yml` | PR to main | `terraform plan -out=tfplan` → PR 코멘트 자동 등록, artifact 7일 보관 |
 | `deploy.yml` | Push to main | Terraform apply + Ansible playbook 실행 (environment: production 승인 필요), 인스턴스가 처음 생성되었다면 BE/FE 자동 배포 |
 | `destroy.yml` | 수동(workflow_dispatch) | `"destroy"` 문자열 확인 후 전체/EC2/SG 선택 삭제 |
-| `destroy.yml` | 수동(workflow_dispatch) | `"stress"` 문자열 확인 후 서버 선택 후 stress 설치 및 과부하 테스트 |
+| `stress_test.yml` | 수동(workflow_dispatch) | `"stress"` 문자열 확인 후 서버 선택 후 stress 설치 및 과부하 테스트 |
 
 ### S3를 통한 파일 전달
 
